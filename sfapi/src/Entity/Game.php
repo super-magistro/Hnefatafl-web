@@ -3,11 +3,26 @@
 namespace App\Entity;
 
 use ApiPlatform\Metadata\ApiResource;
+use ApiPlatform\Metadata\Get;
+use ApiPlatform\Metadata\Post;
 use App\Repository\GameRepository;
 use Doctrine\ORM\Mapping as ORM;
+use App\State\GamePlayProcessor;
 
 #[ORM\Entity(repositoryClass: GameRepository::class)]
-#[ApiResource]
+#[ApiResource(
+    operations: [
+        new Get(),
+        new Post(),
+        // Ta nouvelle route personnalisée pour jouer :
+        new Post(
+            uriTemplate: '/games/{id}/play',
+            processor: GamePlayProcessor::class,
+            name: 'play_turn',
+        // input: false, // Décommente si tu n'envoies pas de JSON (juste un clic sur un bouton)
+        )
+    ]
+)]
 class Game
 {
     #[ORM\Id]
