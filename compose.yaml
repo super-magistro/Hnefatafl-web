@@ -49,10 +49,10 @@ services:
         source: database-volume
         target: /var/lib/mysql
     environment:
-      MYSQL_DATABASE: dbsfapi
-      MYSQL_ROOT_PASSWORD: rdbsfapi
-      MYSQL_USER: udbsfapi
-      MYSQL_PASSWORD: pdbsfapi
+      MYSQL_DATABASE: ${DATABASE_NAME}
+      MYSQL_ROOT_PASSWORD: ${DATABASE_ROOT_PASSWORD}
+      MYSQL_USER: ${DATABASE_USER}
+      MYSQL_PASSWORD: ${DATABASE_USER_PASSWORD}
     networks:
       - network
 
