@@ -43,7 +43,7 @@ services:
     image: ${COMPOSE_PROJECT_NAME}-database
     container_name: ${COMPOSE_PROJECT_NAME}-database
     ports:
-      - ${DATABASE_PORT}:${DATABASE_PORT}
+      - ${DATABASE_PORT}:3306
     volumes:
       - type: volume
         source: database-volume
