@@ -2,17 +2,38 @@
 
 namespace App\Entity;
 
+use ApiPlatform\Metadata\ApiResource;
+use ApiPlatform\Metadata\Get;
+use ApiPlatform\Metadata\Post;
 use App\Repository\UserRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
-use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
-use ApiPlatform\Metadata\ApiResource;
+use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity(repositoryClass: UserRepository::class)]
 #[ORM\UniqueConstraint(name: 'UNIQ_IDENTIFIER_EMAIL', fields: ['email'])]
-#[ApiResource]
+#[ApiResource(
+    operations: [
+        new Post(
+            uriTemplate: '/api/users',
+            description: 'Inscription (Créer un compte)'
+        ),
+        new Get(
+            uriTemplate: '/api/users/{id}',
+            description: 'Voir le profil(Elo, Pseudo)'
+        ),
+        new Get(
+            uriTemplate: '/api/users/me',
+            description: 'Voir son profil (avec email)'
+        ),
+        new Post(
+            uriTemplate: '/api/login',
+            description: 'Se connecter'
+        ),
+    ]
+)]
 class User implements UserInterface, PasswordAuthenticatedUserInterface
 {
     #[ORM\Id]
@@ -47,10 +68,14 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\OneToMany(targetEntity: Game::class, mappedBy: 'playerDefender')]
     private Collection $gamesAsDefender;
 
+    #[ORM\Column]
+    private ?int $elo = null;
+
     public function __construct()
     {
         $this->gamesAsAttacker = new ArrayCollection();
         $this->gamesAsDefender = new ArrayCollection();
+        $this->elo = 1200;
     }
 
     public function getId(): ?int
@@ -190,6 +215,18 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
                 $gamesAsDefender->setPlayerDefender(null);
             }
         }
+
+        return $this;
+    }
+
+    public function getElo(): ?int
+    {
+        return $this->elo;
+    }
+
+    public function setElo(int $elo): static
+    {
+        $this->elo = $elo;
 
         return $this;
     }
