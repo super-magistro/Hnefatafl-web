@@ -2,6 +2,7 @@
 
 namespace App\DataFixtures;
 
+use App\Config\GameRules;
 use App\Entity\GameBoard;
 use Doctrine\Bundle\FixturesBundle\Fixture;
 use Doctrine\Persistence\ObjectManager;
@@ -13,8 +14,9 @@ class AppFixtures extends Fixture
         $this->loadBrandubh($manager);
         $this->loadTablut($manager);
         $this->loadCopenhagen($manager);
-        $this->loadFetlar($manager);
         $this->loadTawlbwrdd($manager);
+        $this->loadFetlar($manager);
+        $this->loadAleaEvangelii($manager);
 
         $manager->flush();
     }
@@ -51,11 +53,12 @@ class AppFixtures extends Fixture
             [2, 0, 0, 0, 0, 0, 2],
         ]);
 
+        // Utilisation des constantes GameRules
         $variant->setRules([
-            'winCondition' => 'CORNER',
-            'kingCapture' => '2_SIDES', // Roi faible
-            'kingWeapon' => 'ARMED',
-            'cornerIsHostile' => true,
+            GameRules::KEY_WIN_CONDITION    => GameRules::WIN_CORNER,
+            GameRules::KEY_KING_CAPTURE     => GameRules::CAPTURE_2_SIDES, // Spécifique Brandubh (Roi faible ?)
+            GameRules::KEY_KING_WEAPON      => GameRules::KING_ARMED,
+            GameRules::KEY_THRONE_HOSTILITY => GameRules::THRONE_ALWAYS_HOSTILE,
         ]);
 
         $manager->persist($variant);
@@ -83,13 +86,12 @@ class AppFixtures extends Fixture
             [0, 0, 0, 1, 1, 1, 0, 0, 0],
         ]);
 
-        // Pas de coins spéciaux au Tablut, juste le trône
         $variant->setTerrainLayout([
             [0, 0, 0, 0, 0, 0, 0, 0, 0],
             [0, 0, 0, 0, 0, 0, 0, 0, 0],
             [0, 0, 0, 0, 0, 0, 0, 0, 0],
             [0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 1, 0, 0, 0, 0],
+            [0, 0, 0, 0, 1, 0, 0, 0, 0], // Juste le trône
             [0, 0, 0, 0, 0, 0, 0, 0, 0],
             [0, 0, 0, 0, 0, 0, 0, 0, 0],
             [0, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -97,10 +99,10 @@ class AppFixtures extends Fixture
         ]);
 
         $variant->setRules([
-            'winCondition' => 'EDGE',
-            'kingCapture' => '4_SIDES', // Roi fort
-            'kingWeapon' => 'ARMED',
-            'throneIsHostile' => true,
+            GameRules::KEY_WIN_CONDITION    => GameRules::WIN_EDGE,
+            GameRules::KEY_KING_CAPTURE     => GameRules::CAPTURE_4_SIDES,
+            GameRules::KEY_KING_WEAPON      => GameRules::KING_ARMED,
+            GameRules::KEY_THRONE_HOSTILITY => GameRules::THRONE_HOSTILE_EMPTY, // Souvent EMPTY en Tablut
         ]);
 
         $manager->persist($variant);
@@ -145,9 +147,11 @@ class AppFixtures extends Fixture
         ]);
 
         $variant->setRules([
-            'winCondition' => 'CORNER',
-            'kingCapture' => '4_SIDES',
-            'shieldWall' => true, // Règle spéciale de mur de boucliers
+            GameRules::KEY_WIN_CONDITION    => GameRules::WIN_CORNER,
+            GameRules::KEY_KING_CAPTURE     => GameRules::CAPTURE_4_SIDES,
+            GameRules::KEY_KING_WEAPON      => GameRules::KING_ARMED,
+            GameRules::KEY_THRONE_HOSTILITY => GameRules::THRONE_HOSTILE_EMPTY,
+            'shieldWall' => true, // Pas encore dans GameRules, on laisse en string
             'exitForts' => true,
         ]);
 
@@ -155,8 +159,7 @@ class AppFixtures extends Fixture
     }
 
     /**
-     * NOUVEAU : Tawlbwrdd (11x11)
-     * Variante Galloise. Le Roi doit seulement atteindre le bord (plus facile pour le défenseur).
+     * Tawlbwrdd (11x11) - Galloise
      */
     private function loadTawlbwrdd(ObjectManager $manager): void
     {
@@ -164,14 +167,13 @@ class AppFixtures extends Fixture
         $variant->setName('Tawlbwrdd (11x11)');
         $variant->setBoardSize(11);
 
-        // Disposition légèrement différente du Copenhagen (plus aérée)
         $variant->setInitialLayout([
             [0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0],
             [0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0],
             [0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
             [0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0],
             [1, 1, 0, 0, 2, 2, 2, 0, 0, 1, 1],
-            [1, 0, 1, 2, 2, 3, 2, 2, 1, 0, 1], // Roi centre
+            [1, 0, 1, 2, 2, 3, 2, 2, 1, 0, 1],
             [1, 1, 0, 0, 2, 2, 2, 0, 0, 1, 1],
             [0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0],
             [0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
@@ -179,34 +181,23 @@ class AppFixtures extends Fixture
             [0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0],
         ]);
 
-        // Pas de coins spéciaux, juste le trône
-        $variant->setTerrainLayout([
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0], // Trône
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        ]);
+        // Terrain standard (pas de coins hostiles)
+        $terrain = array_fill(0, 11, array_fill(0, 11, 0));
+        $terrain[5][5] = 1; // Trône
+        $variant->setTerrainLayout($terrain);
 
         $variant->setRules([
-            'winCondition' => 'EDGE',        // Victoire facile sur les bords
-            'kingCapture' => '2_SIDES',      // Roi faible pour compenser
-            'throneIsHostile' => true
+            GameRules::KEY_WIN_CONDITION    => GameRules::WIN_EDGE,
+            GameRules::KEY_KING_CAPTURE     => GameRules::CAPTURE_2_SIDES,
+            GameRules::KEY_KING_WEAPON      => GameRules::KING_ARMED,
+            GameRules::KEY_THRONE_HOSTILITY => GameRules::THRONE_ALWAYS_HOSTILE,
         ]);
 
         $manager->persist($variant);
     }
 
     /**
-     * NOUVEAU : Fetlar (11x11)
-     * Variante très populaire sur l'île de Fetlar.
-     * Le roi gagne aux coins, mais les attaquants sont disposés différemment.
+     * Fetlar (11x11)
      */
     private function loadFetlar(ObjectManager $manager): void
     {
@@ -220,7 +211,7 @@ class AppFixtures extends Fixture
             [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
             [1, 0, 0, 0, 0, 2, 0, 0, 0, 0, 1],
             [1, 0, 0, 0, 2, 2, 2, 0, 0, 0, 1],
-            [1, 1, 0, 2, 2, 3, 2, 2, 0, 1, 1], // Roi
+            [1, 1, 0, 2, 2, 3, 2, 2, 0, 1, 1],
             [1, 0, 0, 0, 2, 2, 2, 0, 0, 0, 1],
             [1, 0, 0, 0, 0, 2, 0, 0, 0, 0, 1],
             [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -229,33 +220,32 @@ class AppFixtures extends Fixture
         ]);
 
         $variant->setTerrainLayout([
-            [2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2], // Coins
+            [2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2],
             [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
             [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
             [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
             [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0], // Trône
+            [0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
             [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
             [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
             [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
             [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2], // Coins
+            [2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2],
         ]);
 
         $variant->setRules([
-            'winCondition' => 'CORNER',
-            'kingCapture' => '4_SIDES',
-            'kingWeapon' => 'ARMED',
-            'cornerIsHostile' => true,
+            GameRules::KEY_WIN_CONDITION    => GameRules::WIN_CORNER,
+            GameRules::KEY_KING_CAPTURE     => GameRules::CAPTURE_4_SIDES,
+            GameRules::KEY_KING_WEAPON      => GameRules::KING_ARMED,
+            GameRules::KEY_THRONE_HOSTILITY => GameRules::THRONE_ALWAYS_HOSTILE, // Coins aussi hostiles souvent
+            // Optionnel : 'corner_hostility' => true (Si tu veux gérer ça aussi)
         ]);
 
         $manager->persist($variant);
     }
 
     /**
-     * NOUVEAU : Alea Evangelii (19x19) - LE MONSTRE
-     * Manuscrit de Corpus Christi College, Oxford.
-     * C'est une variante gigantesque.
+     * Alea Evangelii (19x19)
      */
     private function loadAleaEvangelii(ObjectManager $manager): void
     {
@@ -263,17 +253,12 @@ class AppFixtures extends Fixture
         $variant->setName('Alea Evangelii (19x19)');
         $variant->setBoardSize(19);
 
-        // Attention les yeux, c'est grand !
-        // J'utilise une boucle ou des patterns pour simplifier si possible,
-        // mais pour être sûr, voici le layout brut du manuscrit.
-
         $initial = array_fill(0, 19, array_fill(0, 19, 0));
 
         // Placement du Roi
         $initial[9][9] = 3;
 
         // Placement des Défenseurs (24 gardes)
-        // La croix centrale et les petits coins intérieurs
         $defenders = [
             [9,7], [9,11], [7,9], [11,9], // Croix proche
             [9,6], [9,12], [6,9], [12,9], // Croix loin
@@ -284,23 +269,20 @@ class AppFixtures extends Fixture
         ];
         foreach($defenders as $coord) { $initial[$coord[0]][$coord[1]] = 2; }
 
-        // Placement des Attaquants (48 attaquants !)
-        // Ils forment des T sur les bords
+        // Placement des Attaquants (48 attaquants)
         $attackers = [
             // Haut
             [0,2],[0,5],[0,13],[0,16],
-            [1,2],[1,5],[1,13],[1,16], // 1ère ligne et 2ème
+            [1,2],[1,5],[1,13],[1,16],
             [2,0],[2,1],[2,2],[2,5],[2,13],[2,16],[2,17],[2,18],
-            [5,0],[5,1],[5,2], [13,0],[13,1],[13,2], // Gauche haut/bas
-            [5,16],[5,17],[5,18], [13,16],[13,17],[13,18], // Droite haut/bas
-
-            // Bas (Symétrique)
+            [5,0],[5,1],[5,2], [13,0],[13,1],[13,2],
+            [5,16],[5,17],[5,18], [13,16],[13,17],[13,18],
+            // Bas
             [16,0],[16,1],[16,2],[16,5],[16,13],[16,16],[16,17],[16,18],
             [17,2],[17,5],[17,13],[17,16],
             [18,2],[18,5],[18,13],[18,16]
         ];
-        // J'ai simplifié la saisie, il manque quelques pions pour arriver à 48,
-        // je complète les T centraux des bords :
+
         $moreAttackers = [
             [0,8],[0,10],[1,9],[2,9], // T Haut
             [18,8],[18,10],[17,9],[16,9], // T Bas
@@ -313,18 +295,18 @@ class AppFixtures extends Fixture
 
         $variant->setInitialLayout($initial);
 
-        // Terrain : Coins et Trône
+        // Terrain
         $terrain = array_fill(0, 19, array_fill(0, 19, 0));
         $terrain[0][0] = 2; $terrain[0][18] = 2;
         $terrain[18][0] = 2; $terrain[18][18] = 2;
         $terrain[9][9] = 1; // Trône
-
         $variant->setTerrainLayout($terrain);
 
         $variant->setRules([
-            'winCondition' => 'CORNER',
-            'kingCapture' => '4_SIDES',
-            'throneIsHostile' => true,
+            GameRules::KEY_WIN_CONDITION    => GameRules::WIN_CORNER,
+            GameRules::KEY_KING_CAPTURE     => GameRules::CAPTURE_4_SIDES,
+            GameRules::KEY_KING_WEAPON      => GameRules::KING_UNARMED,
+            GameRules::KEY_THRONE_HOSTILITY => GameRules::THRONE_ALWAYS_HOSTILE,
         ]);
 
         $manager->persist($variant);
