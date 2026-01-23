@@ -3,8 +3,13 @@
 namespace App\Entity;
 
 use ApiPlatform\Metadata\ApiResource;
+use ApiPlatform\Metadata\Delete;
 use ApiPlatform\Metadata\Get;
+use ApiPlatform\Metadata\GetCollection;
+use ApiPlatform\Metadata\Patch;
+use ApiPlatform\Metadata\Post;
 use App\Repository\GameBoardRepository;
+use App\Security\SecureRules;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
@@ -13,15 +18,34 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Entity(repositoryClass: GameBoardRepository::class)]
 #[ApiResource(
     operations: [
-        new Get(
-            uriTemplate: '/api/game_boards',
-            description: 'Lister les variantes disponibles'
+        new GetCollection(
+            uriTemplate: '/game_boards',
+            description: 'Lister les variantes disponibles',
         ),
         new Get(
-            uriTemplate: '/api/game_boards/{id}',
-            description: 'permet de récupérer les layouts initiaux et dessiner le plateau'
+            uriTemplate: '/game_boards/{id}',
+            description: 'Récupérer les layouts initiaux et dessiner le plateau',
         ),
-    ]
+
+        // --- ADMINISTRATION (Création de variantes) ---
+        new Post(
+            uriTemplate: '/game_boards',
+            security: SecureRules::ADMIN_ONLY,
+            securityMessage: SecureRules::MSG_ADMIN_ONLY
+        ),
+        new Patch(
+            uriTemplate: '/game_boards/{id}',
+            security: SecureRules::ADMIN_ONLY,
+            securityMessage: SecureRules::MSG_ADMIN_ONLY
+        ),
+        new Delete(
+            uriTemplate: '/game_boards/{id}',
+            security: SecureRules::ADMIN_ONLY,
+            securityMessage: SecureRules::MSG_ADMIN_ONLY
+        ),
+    ],
+    security: SecureRules::USER_READ,
+    securityMessage: SecureRules::MSG_USER_READ
 )]
 class GameBoard
 {
@@ -45,7 +69,7 @@ class GameBoard
     /**
      * @var Collection<int, Game>
      */
-    #[ORM\OneToMany(targetEntity: Game::class, mappedBy: 'GameBoard')]
+    #[ORM\OneToMany(targetEntity: Game::class, mappedBy: 'gameBoard')]
     private Collection $games;
 
     /**
