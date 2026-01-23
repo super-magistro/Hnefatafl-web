@@ -3,79 +3,116 @@
 namespace App\Entity;
 
 use ApiPlatform\Metadata\ApiResource;
+use ApiPlatform\Metadata\Delete;
 use ApiPlatform\Metadata\Get;
+use ApiPlatform\Metadata\GetCollection;
+use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
 use App\Repository\UserRepository;
+use App\Security\SecureRules;
+use App\State\UserPasswordHasher;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
+use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
-use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Serializer\Annotation\Groups;
 
 #[ORM\Entity(repositoryClass: UserRepository::class)]
 #[ORM\UniqueConstraint(name: 'UNIQ_IDENTIFIER_EMAIL', fields: ['email'])]
 #[ApiResource(
+    // 1. Groupes de sérialisation par défaut
     operations: [
-        new Post(
-            uriTemplate: '/api/users',
-            description: 'Inscription (Créer un compte)'
+        new GetCollection(
+            security: SecureRules::USER_READ,
+            securityMessage: SecureRules::MSG_USER_READ
         ),
         new Get(
-            uriTemplate: '/api/users/{id}',
-            description: 'Voir le profil(Elo, Pseudo)'
+            security: SecureRules::USER_READ,
+            securityMessage: SecureRules::MSG_USER_READ
         ),
-        new Get(
-            uriTemplate: '/api/users/me',
-            description: 'Voir son profil (avec email)'
-        ),
+
+        // --- ÉCRITURE (Inscription) ---
         new Post(
-            uriTemplate: '/api/login',
-            description: 'Se connecter'
+            uriTemplate: '/users',
+            security: SecureRules::PUBLIC_ACCESS, // Tout le monde peut s'inscrire
+            validationContext: ['groups' => ['Default', 'user:create']],
+            processor: UserPasswordHasher::class // <--- C'est lui qui crypte le mot de passe !
         ),
-    ]
+
+        // --- MODIFICATION (Profil) ---
+        new Patch(
+            security: SecureRules::USER_EDIT, // Seul le propriétaire peut modifier
+            securityMessage: SecureRules::MSG_USER_EDIT,
+            processor: UserPasswordHasher::class
+        ),
+
+        // --- SUPPRESSION (Admin) ---
+        new Delete(
+            security: SecureRules::ADMIN_ONLY,
+            securityMessage: SecureRules::MSG_ADMIN_ONLY
+        )
+    ],
+    normalizationContext: ['groups' => ['user:read']],
+
+    denormalizationContext: ['groups' => ['user:write']]
 )]
 class User implements UserInterface, PasswordAuthenticatedUserInterface
 {
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
+    #[Groups(['user:read'])] // L'ID est visible
     private ?int $id = null;
 
     #[ORM\Column(length: 180)]
+    #[Groups(['user:read', 'user:write', 'user:create'])] // Email visible et modifiable
     private ?string $email = null;
 
     /**
      * @var list<string> The user roles
      */
     #[ORM\Column]
+    #[Groups(['user:read'])] // On voit les rôles, mais on ne les modifie pas directement
     private array $roles = [];
 
     /**
      * @var string The hashed password
      */
     #[ORM\Column]
+    // PAS DE GROUPS ICI ! On ne montre jamais le hash.
     private ?string $password = null;
+
+    /**
+     * Champ virtuel pour le mot de passe en clair (Inscription / Modif)
+     */
+    #[Groups(['user:write', 'user:create'])] // On peut l'envoyer pour créer le compte
+    private ?string $plainPassword = null;
+
+    #[ORM\Column]
+    #[Groups(['user:read'])]
+    private ?int $elo = null;
 
     /**
      * @var Collection<int, Game>
      */
-    #[ORM\OneToMany(targetEntity: Game::class, mappedBy: 'playerAttacker')]
+    // Correction ici : 'attacker' (le vrai nom dans Game.php)
+    #[ORM\OneToMany(targetEntity: Game::class, mappedBy: 'attacker')]
     private Collection $gamesAsAttacker;
 
     /**
      * @var Collection<int, Game>
      */
-    #[ORM\OneToMany(targetEntity: Game::class, mappedBy: 'playerDefender')]
+    // Correction ici : 'defender'
+    #[ORM\OneToMany(targetEntity: Game::class, mappedBy: 'defender')]
     private Collection $gamesAsDefender;
-
-    #[ORM\Column]
-    private ?int $elo = null;
 
     public function __construct()
     {
         $this->gamesAsAttacker = new ArrayCollection();
         $this->gamesAsDefender = new ArrayCollection();
         $this->elo = 1200;
+        $this->setRoles(['ROLE_USER', 'ROLE_USER_EDIT']);
     }
 
     public function getId(): ?int
@@ -91,45 +128,27 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function setEmail(string $email): static
     {
         $this->email = $email;
-
         return $this;
     }
 
-    /**
-     * A visual identifier that represents this user.
-     *
-     * @see UserInterface
-     */
     public function getUserIdentifier(): string
     {
         return (string) $this->email;
     }
 
-    /**
-     * @see UserInterface
-     */
     public function getRoles(): array
     {
         $roles = $this->roles;
-        // guarantee every user at least has ROLE_USER
         $roles[] = 'ROLE_USER';
-
         return array_unique($roles);
     }
 
-    /**
-     * @param list<string> $roles
-     */
     public function setRoles(array $roles): static
     {
         $this->roles = $roles;
-
         return $this;
     }
 
-    /**
-     * @see PasswordAuthenticatedUserInterface
-     */
     public function getPassword(): ?string
     {
         return $this->password;
@@ -138,86 +157,28 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function setPassword(string $password): static
     {
         $this->password = $password;
-
         return $this;
     }
 
-    /**
-     * Ensure the session doesn't contain actual password hashes by CRC32C-hashing them, as supported since Symfony 7.3.
-     */
-    public function __serialize(): array
-    {
-        $data = (array) $this;
-        $data["\0".self::class."\0password"] = hash('crc32c', $this->password);
+    // --- Gestion du plainPassword ---
 
-        return $data;
+    public function getPlainPassword(): ?string
+    {
+        return $this->plainPassword;
     }
 
-    #[\Deprecated]
+    public function setPlainPassword(?string $plainPassword): self
+    {
+        $this->plainPassword = $plainPassword;
+        return $this;
+    }
+
     public function eraseCredentials(): void
     {
-        // @deprecated, to be removed when upgrading to Symfony 8
+        $this->plainPassword = null;
     }
 
-    /**
-     * @return Collection<int, Game>
-     */
-    public function getGamesAsAttacker(): Collection
-    {
-        return $this->gamesAsAttacker;
-    }
-
-    public function addGamesAsAttacker(Game $gamesAsAttacker): static
-    {
-        if (!$this->gamesAsAttacker->contains($gamesAsAttacker)) {
-            $this->gamesAsAttacker->add($gamesAsAttacker);
-            $gamesAsAttacker->setPlayerAttacker($this);
-        }
-
-        return $this;
-    }
-
-    public function removeGamesAsAttacker(Game $gamesAsAttacker): static
-    {
-        if ($this->gamesAsAttacker->removeElement($gamesAsAttacker)) {
-            // set the owning side to null (unless already changed)
-            if ($gamesAsAttacker->getPlayerAttacker() === $this) {
-                $gamesAsAttacker->setPlayerAttacker(null);
-            }
-        }
-
-        return $this;
-    }
-
-    /**
-     * @return Collection<int, Game>
-     */
-    public function getGamesAsDefender(): Collection
-    {
-        return $this->gamesAsDefender;
-    }
-
-    public function addGamesAsDefender(Game $gamesAsDefender): static
-    {
-        if (!$this->gamesAsDefender->contains($gamesAsDefender)) {
-            $this->gamesAsDefender->add($gamesAsDefender);
-            $gamesAsDefender->setPlayerDefender($this);
-        }
-
-        return $this;
-    }
-
-    public function removeGamesAsDefender(Game $gamesAsDefender): static
-    {
-        if ($this->gamesAsDefender->removeElement($gamesAsDefender)) {
-            // set the owning side to null (unless already changed)
-            if ($gamesAsDefender->getPlayerDefender() === $this) {
-                $gamesAsDefender->setPlayerDefender(null);
-            }
-        }
-
-        return $this;
-    }
+    // --- Getters Elo & Games ---
 
     public function getElo(): ?int
     {
@@ -227,7 +188,16 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function setElo(int $elo): static
     {
         $this->elo = $elo;
-
         return $this;
+    }
+
+    public function getGamesAsAttacker(): Collection
+    {
+        return $this->gamesAsAttacker;
+    }
+
+    public function getGamesAsDefender(): Collection
+    {
+        return $this->gamesAsDefender;
     }
 }
