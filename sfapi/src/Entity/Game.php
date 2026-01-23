@@ -4,48 +4,48 @@ namespace App\Entity;
 
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Get;
+use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Post;
 use App\Controller\GamePlayController;
 use App\Controller\GameResignController;
 use App\Repository\GameRepository;
+use App\Security\SecureRules;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity(repositoryClass: GameRepository::class)]
 #[ApiResource(
     operations: [
-        new Get(
-            uriTemplate: '/api/games',
-            description: 'Lister les parties'
+        new GetCollection(
+            uriTemplate: '/games',
         ),
         new Get(
-            uriTemplate: '/api/games/{id}',
-            description: 'Voir une partie, rafraichir le plateau'
+            uriTemplate: '/games/{id}',
         ),
         new Post(
-            uriTemplate: 'api/games',
-            description: 'Créer une partie'
+            uriTemplate: '/games',
+            description: 'Créer une partie',
         ),
-        //Actions en temps réel
+
         new Post(
             uriTemplate: '/games/{id}/play',
-            stateless: false,
             controller: GamePlayController::class,
-            description: 'Jouer un coup',
+            description: 'Play a turn',
             read: true,
             write: false,
             name: 'play_turn'
         ),
         new Post(
             uriTemplate: '/games/{id}/resign',
-            stateless: false,
             controller: GameResignController::class,
-            description: 'Abandonner',
+            description: 'Resign a turn',
             read: true,
             write: false,
             name: 'game_resign'
         )
-    ]
+    ],
+    security: SecureRules::USER_READ,
+    securityMessage: SecureRules::MSG_USER_READ
 )]
 class Game
 {
@@ -90,10 +90,9 @@ class Game
     #[ORM\Column(nullable: true)]
     private ?int $defenderTimeLeft = null;
 
-    #[ORM\ManyToOne(inversedBy: 'games')]
+    #[ORM\ManyToOne]
     #[ORM\JoinColumn(nullable: false)]
     private ?GameBoard $gameBoard = null;
-
 
     public function getId(): ?int
     {

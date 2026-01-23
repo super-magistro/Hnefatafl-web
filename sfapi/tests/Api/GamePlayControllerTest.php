@@ -6,48 +6,55 @@ use ApiPlatform\Symfony\Bundle\Test\ApiTestCase;
 use App\Entity\User;
 use App\Entity\Game;
 use App\Entity\GameBoard;
+use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 
 class GamePlayControllerTest extends ApiTestCase
 {
+    // On utilise le Trait qu'on vient de créer pour gérer le JWT
+    use AuthenticationTestTrait;
+
     private $entityManager;
-    private $client;
+    private $passwordHasher;
 
     protected function setUp(): void
     {
-        $this->client = static::createClient();
         $this->entityManager = self::getContainer()->get('doctrine')->getManager();
+        $this->passwordHasher = self::getContainer()->get('security.user_password_hasher');
     }
 
     // Helper pour créer une partie rapidement en base
     private function createGameInDb(): array
     {
+        // 1. Création des utilisateurs avec MOT DE PASSE HACHÉ
+        // (Sinon le login via API échouera car il compare le hash)
+        $password = 'password123';
+
         $attacker = new User();
-        $attacker->setEmail('p1-' . uniqid() . '@test.com');
-        $attacker->setPassword('pwd');
+        $attackerEmail = 'p1-' . uniqid() . '@test.com';
+        $attacker->setEmail($attackerEmail);
+        $attacker->setPassword($this->passwordHasher->hashPassword($attacker, $password));
         $this->entityManager->persist($attacker);
 
         $defender = new User();
         $defender->setEmail('p2-' . uniqid() . '@test.com');
-        $defender->setPassword('pwd');
+        $defender->setPassword($this->passwordHasher->hashPassword($defender, $password));
         $this->entityManager->persist($defender);
 
+        // 2. Création du Plateau
         $board = new GameBoard();
         $board->setName('Plateau de Test');
-
         $board->setBoardSize(7);
 
-        // Initialisation du plateau vide (7x7)
+        // Initialisation du plateau (Attaquant en 0,0 et Roi en 3,3)
         $layout = array_fill(0, 7, array_fill(0, 7, 0));
-
-        // --- CORRECTION ICI ---
-        $layout[0][0] = 1; // Un Attaquant en haut à gauche
-        $layout[3][3] = 3; // LE ROI au centre (Indispensable pour que la partie ne finisse pas tout de suite)
-        // ----------------------
+        $layout[0][0] = 1; // Attaquant
+        $layout[3][3] = 3; // Roi
 
         $board->setInitialLayout($layout);
-        $board->setTerrainLayout($layout); // On utilise le même layout pour le terrain pour simplifier ici
+        $board->setTerrainLayout($layout);
         $board->setRules([]);
         $this->entityManager->persist($board);
+
 
         $game = new Game();
         $game->setVariant('Brandubh');
@@ -57,20 +64,20 @@ class GamePlayControllerTest extends ApiTestCase
         $game->setDefender($defender);
         $game->setGameBoard($board);
         $game->setBoardState($layout);
+
         $this->entityManager->persist($game);
         $this->entityManager->flush();
 
-        return [$game, $attacker];
+        return [$game, $attackerEmail, $password];
     }
 
     public function testPlayEndpointSuccess(): void
     {
-        [$game, $attacker] = $this->createGameInDb();
+        [$game, $email, $password] = $this->createGameInDb();
 
-        $this->client->loginUser($attacker);
+        $client = $this->createClientWithCredentials($email, $password);
 
-        $this->client->request('POST', '/api/games/' . $game->getId() . '/play', [
-            'headers' => ['Content-Type' => 'application/ld+json'],
+        $client->request('POST', '/api/games/' . $game->getId() . '/play', [
             'json' => [
                 'from' => [0, 0],
                 'to'   => [0, 1]
@@ -78,21 +85,20 @@ class GamePlayControllerTest extends ApiTestCase
         ]);
 
         $this->assertResponseIsSuccessful();
-
-        // Maintenant que le Roi est là, la partie continue et le statut reste PLAYING
         $this->assertJsonContains(['status' => 'PLAYING']);
     }
 
     public function testPlayEndpointBadRequest(): void
     {
-        [$game, $attacker] = $this->createGameInDb();
-        $this->client->loginUser($attacker);
+        [$game, $email, $password] = $this->createGameInDb();
 
-        $this->client->request('POST', '/api/games/' . $game->getId() . '/play', [
-            'headers' => ['Content-Type' => 'application/ld+json'],
+        // Connexion JWT
+        $client = $this->createClientWithCredentials($email, $password);
+
+        $client->request('POST', '/api/games/' . $game->getId() . '/play', [
             'json' => [
                 'from' => [0, 0]
-                // "to" manque délibérément pour provoquer l'erreur 400
+                // "to" manque pour provoquer l'erreur
             ]
         ]);
 
