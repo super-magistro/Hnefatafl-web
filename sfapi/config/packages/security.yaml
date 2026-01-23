@@ -17,6 +17,20 @@ security:
             # Ensure dev tools and static assets are always allowed
             pattern: ^/(_profiler|_wdt|assets|build)/
             security: false
+        login:
+            pattern: ^/api/login
+            stateless: true
+            json_login:
+                check_path: /api/login_check # La route qu'on va appeler
+                success_handler: lexik_jwt_authentication.handler.authentication_success
+                failure_handler: lexik_jwt_authentication.handler.authentication_failure
+                username_path: email
+                password_path: password
+        api:
+            pattern: ^/api
+            stateless: true
+            provider: app_user_provider
+            jwt: ~
         main:
             lazy: true
             provider: app_user_provider
@@ -29,8 +43,11 @@ security:
 
     # Note: Only the *first* matching rule is applied
     access_control:
-        # - { path: ^/admin, roles: ROLE_ADMIN }
-        # - { path: ^/profile, roles: ROLE_USER }
+        - { path: ^/api/login, roles: PUBLIC_ACCESS } # Tout le monde peut essayer de se connecter
+        - { path: ^/api/users, methods: [POST], roles: PUBLIC_ACCESS } # Inscription ouverte
+        - { path: ^/api/docs, roles: PUBLIC_ACCESS }  # JSON de la doc
+        - { path: ^/api$, roles: PUBLIC_ACCESS }      # Interface Swagger UI
+        - { path: ^/api,       roles: IS_AUTHENTICATED_FULLY } # Tout le reste est fermé
 
 when@test:
     security:
