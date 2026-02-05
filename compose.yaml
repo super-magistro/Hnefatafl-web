@@ -62,7 +62,7 @@ services:
     environment:
       HOST: 0.0.0.0
       # Nginx s'appelle "nginx" dans le réseau docker
-      NUXT_PUBLIC_API_BASE: http://nginx:80
+      NUXT_PUBLIC_API_BASE: http://localhost:8000/api
     volumes:
       - ./front:/app
     ports:
