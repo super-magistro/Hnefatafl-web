@@ -7,18 +7,18 @@ const email = ref('')
 const password = ref('')
 const confirmPassword = ref('')
 const isLoading = ref(false)
-
 const errors = ref<Record<string, string>>({})
 
-const { login } = useAuth()
+const { login, register } = useAuth()
 const router = useRouter()
 
 const handleSubmit = async () => {
+  // Reset erreurs
   errors.value = {}
 
-  // Validation rapide (grâce aux utils auto-importés)
+  // Validations de base (email, etc.)
   if (!isValidEmail(email.value)) {
-    errors.value.email = "Email invalide"
+    errors.value.email = "Format d'email invalide"
     return
   }
   if (!isStrongPassword(password.value)) {
@@ -31,17 +31,18 @@ const handleSubmit = async () => {
   }
 
   isLoading.value = true
+  let success = false
 
   if (isLoginMode.value) {
-    const success = await login(email.value, password.value)
-    if (success) {
-      router.push('/games')
-    } else {
-      errors.value.general = 'Identifiants incorrects'
-      errors.value.general = 'Identifiants incorrects'
-    }
+    success = await login(email.value, password.value)
+    if (!success) errors.value.general = 'Email ou mot de passe incorrect'
   } else {
-    errors.value.general = "Inscription bientôt dispo !"
+    success = await register(email.value, password.value)
+    if (!success) errors.value.general = "Impossible de s'inscrire (cet email est peut-être déjà pris)"
+  }
+
+  if (success) {
+    router.push('/games')
   }
 
   isLoading.value = false

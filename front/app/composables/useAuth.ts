@@ -30,11 +30,35 @@ export const useAuth = () => {
         }
     }
 
+    const register = async (email: string, password: string) => {
+        try {
+            // 1. Création de l'utilisateur
+            await $fetch(`${config.public.apiBase}/users`, {
+                method: 'POST',headers: {
+                    'Content-Type': 'application/ld+json',
+                    'Accept': 'application/ld+json'
+                },
+                body: {
+                    "email": email,
+                    "plainPassword": password
+                }
+            } as any)
+
+            // 2. Connexion automatique dans la foulée
+            return await login(email, password)
+
+        } catch (err: any) {
+            console.error('Erreur inscription:', err)
+            // on retourne false pour dire au formulaire que ça a raté
+            return false
+        }
+    }
+
     const logout = () => {
         token.value = null
         user.value = null
     }
 
     // On retourne ce qui doit être accessible aux composants
-    return { token, login, logout }
+    return { token, login, logout, register }
 }
