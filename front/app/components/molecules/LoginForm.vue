@@ -5,7 +5,7 @@
 
       <AtomsIconTafl class="w-15 h-15 mb-4" />
 
-      <h1 class="text-3xl font-bold font-cinzel text-oil-950">Hnefatafl Online</h1>
+      <h1 class="text-3xl font-bold text-oil-950" style="font-family: 'Cinzel', serif;">Hnefatafl Online</h1>
       <p class="mt-2 text-sm text-pine-cone-600">La Stratégie des Rois</p>
     </div>
 
