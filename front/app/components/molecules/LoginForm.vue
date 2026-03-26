@@ -1,12 +1,12 @@
 <template>
   <div class="w-full max-w-md p-8 mx-auto bg-white shadow-xl rounded-2xl ring-1 ring-gray-200">
 
-    <div class="flex flex-col items-center mb-8 text-center">
-      <div class="p-3 mb-4 rounded-full bg-primary/10">
-        <UIcon name="i-lucide-shield" class="w-10 h-10 text-warning" />
-      </div>
-      <h1 class="text-3xl font-bold font-cinzel text-gray-900">Hnefatafl Online</h1>
-      <p class="mt-2 text-sm text-gray-500">La Stratégie des Rois</p>
+    <div class="flex flex-col items-center mb-8 text-center mt-2">
+
+      <AtomsIconTafl class="w-15 h-15 mb-4" />
+
+      <h1 class="text-3xl font-bold font-cinzel text-oil-950">Hnefatafl Online</h1>
+      <p class="mt-2 text-sm text-pine-cone-600">La Stratégie des Rois</p>
     </div>
 
     <div class="flex p-1 mb-8 space-x-1 bg-gray-100 rounded-lg">
