@@ -1,55 +1,49 @@
 <template>
-  <div class="w-full max-w-md p-8 mx-auto bg-white shadow-xl rounded-2xl ring-1 ring-gray-200">
+  <UCard class="w-full max-w-md mx-auto">
 
-    <div class="flex flex-col items-center mb-8 text-center mt-2">
-
+    <div class="flex flex-col items-center mb-8 text-center">
       <AtomsIconTafl class="w-15 h-15 mb-4" />
-
-      <h1 class="text-3xl font-bold text-oil-950" style="font-family: 'Cinzel', serif;">Hnefatafl Online</h1>
+      <h1 class="text-3xl font-bold font-['Cinzel',serif] text-oil-950">Hnefatafl Online</h1>
       <p class="mt-2 text-sm text-pine-cone-600">La Stratégie des Rois</p>
     </div>
 
-    <div class="flex p-1 mb-8 space-x-1 bg-gray-100 rounded-lg">
-      <button
-          :class="[
-          'flex-1 py-2.5 text-sm font-medium rounded-md transition-all duration-200',
-          isLoginMode ? 'bg-white text-gray-900 shadow ring-1 ring-gray-200' : 'text-gray-500 hover:text-gray-700'
-        ]"
+    <div class="flex p-1 mb-8 space-x-1 rounded-lg bg-neutral-100">
+      <UButton
+          class="flex-1 justify-center py-2.5 text-sm"
+          :variant="isLoginMode ? 'tabActive' : 'tabInactive'"
           @click="isLoginMode = true"
       >
         Connexion
-      </button>
-      <button
-          :class="[
-          'flex-1 py-2.5 text-sm font-medium rounded-md transition-all duration-200',
-          !isLoginMode ? 'bg-white text-gray-900 shadow ring-1 ring-gray-200' : 'text-gray-500 hover:text-gray-700'
-        ]"
+      </UButton>
+      <UButton
+          class="flex-1 justify-center py-2.5 text-sm"
+          :variant="!isLoginMode ? 'tabActive' : 'tabInactive'"
           @click="isLoginMode = false"
       >
         Inscription
-      </button>
+      </UButton>
     </div>
 
     <form @submit.prevent="handleSubmit" class="space-y-5">
 
       <div>
         <AtomsInput v-model="email" label="Email" type="email" placeholder="viking@valhalla.com" />
-        <p v-if="errors.email" class="mt-1 text-sm text-red-500">{{ errors.email }}</p>
+        <p v-if="errors.email" class="mt-1 text-sm text-error-500">{{ errors.email }}</p>
       </div>
 
       <div>
         <AtomsInput v-model="password" label="Mot de passe" type="password" />
-        <p v-if="errors.password" class="mt-1 text-sm text-red-500">{{ errors.password }}</p>
+        <p v-if="errors.password" class="mt-1 text-sm text-error-500">{{ errors.password }}</p>
       </div>
 
       <div v-if="!isLoginMode">
         <AtomsInput v-model="confirmPassword" label="Confirmer le mot de passe" type="password" />
-        <p v-if="errors.confirm" class="mt-1 text-sm text-red-500">{{ errors.confirm }}</p>
+        <p v-if="errors.confirm" class="mt-1 text-sm text-error-500">{{ errors.confirm }}</p>
       </div>
 
       <UAlert
           v-if="errors.general"
-          color="red"
+          color="error"
           variant="subtle"
           icon="i-lucide-alert-circle"
           :title="errors.general"
@@ -57,23 +51,24 @@
 
       <UButton
           type="submit"
-          color="primary"
+          variant="cta"
           size="xl"
           block
           :loading="isLoading"
-          class="mt-2 font-semibold"
+          class="mt-6"
       >
-        {{ isLoginMode ? 'Se connecter' : 'Rejoindre le Valhalla' }}
+        {{ isLoginMode ? 'Se connecter' : 'Rejoindre' }}
       </UButton>
 
     </form>
 
     <div class="mt-6 text-center" v-if="isLoginMode">
-      <a href="#" class="text-sm font-medium transition-colors text-primary hover:text-primary/80">
+      <UButton variant="Link" class="text-sm">
         Mot de passe oublié ?
-      </a>
+      </UButton>
     </div>
-  </div>
+
+  </UCard>
 </template>
 
 <script setup lang="ts">
@@ -91,10 +86,8 @@ const { login, register } = useAuth()
 const router = useRouter()
 
 const handleSubmit = async () => {
-  // Reset erreurs
   errors.value = {}
 
-  // Validations
   if (!validator.isEmail(email.value)) {
     errors.value.email = "Format d'email invalide"
     return

@@ -2,6 +2,9 @@
 export default defineNuxtConfig({
   devtools: { enabled: true },
   modules: ['@nuxt/ui', '', '@nuxtjs/google-fonts'],
+  ui: {
+    colorMode: false
+  },
   runtimeConfig: {
     public: { apiBase: 'http://localhost:8000/api' }
   },
