@@ -1,0 +1,71 @@
+/* assets/css/main.css */
+@import 'tailwindcss';
+@import '@nuxt/ui';
+
+@theme static{
+    --color-vert-50: #f2f7f2;
+    --color-vert-100: #e0ebe0;
+    --color-vert-200: #c4d6c5;
+    --color-vert-300: #9bba9f;
+    --color-vert-400: #709777;
+    --color-vert-500: #4f7a58;
+    --color-vert-600: #3b6043;
+    --color-vert-700: #2e4a35;/*Principal*/
+    --color-vert-800: #273e2d;
+    --color-vert-900: #213326;
+    --color-vert-950: #121c15;
+
+    --color-golden-grass-50: #fcfaea;
+    --color-golden-grass-100: #f8f2c9;
+    --color-golden-grass-200: #f2e396;
+    --color-golden-grass-300: #eacd5a;
+    --color-golden-grass-400: #e3b72c;
+    --color-golden-grass-500: #daa520; /*Principal*/
+    --color-golden-grass-600: #b67c18;
+    --color-golden-grass-700: #915a17;
+    --color-golden-grass-800: #79481a;
+    --color-golden-grass-900: #673c1c;
+    --color-golden-grass-950: #3c1f0c;
+
+    --color-oil-50: #f6f4f0;
+    --color-oil-100: #e8e5da;
+    --color-oil-200: #d2cbb9;
+    --color-oil-300: #b9ad90;
+    --color-oil-400: #a3926f;
+    --color-oil-500: #907f5e;
+    --color-oil-600: #79684e;
+    --color-oil-700: #61513f;
+    --color-oil-800: #524539;
+    --color-oil-900: #483d34;
+    --color-oil-950: #2b231d;/*Principal*/
+
+    --color-pine-cone-50: #fbfbf8;
+    --color-pine-cone-100: #f6f6f3;
+    --color-pine-cone-200: #e9e4e2;
+    --color-pine-cone-300: #dad1cd;
+    --color-pine-cone-400: #af9e97;
+    --color-pine-cone-500: #816c63;
+    --color-pine-cone-600: #6b5d52;/*Principal*/
+    --color-pine-cone-700: #4a3e36;
+    --color-pine-cone-800: #2d2120;
+    --color-pine-cone-900: #201713;
+    --color-pine-cone-950: #0e0907;
+
+    --color-spring-wood-50: #f9f7f3;
+    --color-spring-wood-100: #f4f1ea;/*Principal*/
+    --color-spring-wood-200: #e1d8c7;
+    --color-spring-wood-300: #cebea3;
+    --color-spring-wood-400: #b9a07e;
+    --color-spring-wood-500: #ab8a64;
+    --color-spring-wood-600: #9e7958;
+    --color-spring-wood-700: #83634b;
+    --color-spring-wood-800: #6b5141;
+    --color-spring-wood-900: #584336;
+    --color-spring-wood-950: #2e221c;
+}
+
+@layer utilities {
+    .flex-center {
+        @apply flex justify-center items-center;
+    }
+}

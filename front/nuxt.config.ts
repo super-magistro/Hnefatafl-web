@@ -1,38 +1,24 @@
-// https://nuxt.com/docs/api/configuration/nuxt-config
+// nuxt.config.ts
 export default defineNuxtConfig({
   devtools: { enabled: true },
-
-  runtimeConfig: {
-    public: {
-      apiBase: 'http://localhost:8000/api'
-    }
+  modules: ['@nuxt/ui', '', '@nuxtjs/google-fonts'],
+  ui: {
+    colorMode: false
   },
-
-  // Auto-import des composants atomiques
+  runtimeConfig: {
+    public: { apiBase: 'http://localhost:8000/api' }
+  },
   components: [
     { path: '~/components/atoms', prefix: 'Atoms' },
     { path: '~/components/molecules', prefix: 'Molecules' },
     { path: '~/components/organisms', prefix: 'Organisms' },
     '~/components'
   ],
-
-  css: ['~/assets/less/main.less'],
-
-  vite: {
-    css: {
-      preprocessorOptions: {
-        less: {
-          additionalData: '@import "@/assets/less/_variables.less";'
-        }
-      }
-    }
-  },
-
-  app: {
-    head: {
-      link: [
-        { rel: 'stylesheet', href: 'https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Inter:wght@400;500;600&display=swap' }
-      ]
+  css: ['~/assets/css/main.css'],
+  googleFonts: {
+    families: {
+      'Cinzel': true,
+      'Inter': true,
     }
   }
 })
