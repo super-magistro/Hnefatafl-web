@@ -7,7 +7,7 @@ definePageMeta({
 
       // Redirection instantanée avant même le rendu de la page
       if (token.value) {
-        return navigateTo('/games')
+        return navigateTo('/main')
       }
       return navigateTo('/login')
     }
