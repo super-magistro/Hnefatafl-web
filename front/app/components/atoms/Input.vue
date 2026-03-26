@@ -1,39 +1,35 @@
-<style lang="less" scoped src="~/assets/less/components/atoms/Input.less"></style>
 <template>
-  <div class="input-group">
-    <label v-if="label">{{ label }}</label>
-    <div class="input-wrapper" :class="{ 'focused': isFocused }">
-      <input
-          v-model="model"
-          :type="showPassword ? 'text' : type"
-          :placeholder="placeholder"
-          @focus="isFocused = true"
-          @blur="isFocused = false"
-      />
-
-      <button
-          v-if="type === 'password'"
-          type="button"
-          class="eye-btn"
-          @click="showPassword = !showPassword"
-      >
-        <Eye v-if="!showPassword" :size="20" />
-        <EyeOff v-else :size="20" />
-      </button>
-    </div>
-  </div>
+  <UFormField :label="label" class="mb-4">
+    <UInput
+        v-model="model"
+        :type="showPassword ? 'text' : type"
+        :placeholder="placeholder"
+        size="lg"
+        class="w-full"
+    >
+      <template v-if="type === 'password'" #trailing>
+        <UButton
+            color="neutral"
+            variant="ghost"
+            :icon="showPassword ? 'i-lucide-eye-off' : 'i-lucide-eye'"
+            aria-label="Afficher/Masquer le mot de passe"
+            @click="showPassword = !showPassword"
+        />
+      </template>
+    </UInput>
+  </UFormField>
 </template>
 
 <script setup lang="ts">
-import { Eye, EyeOff } from 'lucide-vue-next'
-
-defineProps<{
+const props = withDefaults(defineProps<{
   label?: string
-  type?: string // 'text', 'password', 'email'
+  type?: 'text' | 'password' | 'email' | 'number'
   placeholder?: string
-}>()
+}>(), {
+  type: 'text',
+  placeholder: ''
+})
 
-const model = defineModel<string>()
+const model = defineModel<string | number>()
 const showPassword = ref(false)
-const isFocused = ref(false)
 </script>
