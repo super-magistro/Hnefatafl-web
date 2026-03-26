@@ -8,6 +8,7 @@ use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
+use App\Controller\UserController;
 use App\Repository\UserRepository;
 use App\Security\SecureRules;
 use App\State\UserPasswordHasher;
@@ -31,13 +32,20 @@ use Symfony\Component\Serializer\Annotation\Groups;
             security: SecureRules::USER_READ,
             securityMessage: SecureRules::MSG_USER_READ
         ),
+        new Get(
+            uriTemplate: '/me',
+            controller: UserController::class,
+            security: "is_granted('ROLE_USER')",
+            read: false,
+            name: 'me',
+        ),
 
         // --- ÉCRITURE (Inscription) ---
         new Post(
             uriTemplate: '/users',
             security: SecureRules::PUBLIC_ACCESS, // Tout le monde peut s'inscrire
             validationContext: ['groups' => ['Default', 'user:create']],
-            processor: UserPasswordHasher::class // <--- C'est lui qui crypte le mot de passe !
+            processor: UserPasswordHasher::class
         ),
 
         // --- MODIFICATION (Profil) ---
@@ -200,4 +208,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     {
         return $this->gamesAsDefender;
     }
+
+
 }
