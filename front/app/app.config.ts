@@ -10,8 +10,33 @@ export default defineAppConfig({
 
         card: {
             slots: {
+                // Ton style par défaut (pour la grosse carte principale)
                 root: 'bg-white shadow-xl rounded-2xl ring-1 ring-neutral-200',
-                body: 'p-8 sm:p-8',
+                body: 'p-8 sm:p-12',
+            },
+            variants: {
+                variant: {
+                    // Une nouvelle variante pour les cartes intérieures !
+                    subtle: {
+                        root: 'bg-neutral-50 shadow-none ring-1 ring-neutral-200',
+                        body: 'p-6 sm:p-8'
+                    }
+                }
+            }
+        },
+
+        alert: {
+            slots: {
+                root: 'py-5',
+                title: 'text-base font-bold uppercase tracking-wider mb-2',
+                description: 'text-base leading-relaxed',
+                icon: 'w-6 h-6 shrink-0'
+            }
+        },
+
+        separator: {
+            slots: {
+                border: 'border-neutral-200'
             }
         },
 
