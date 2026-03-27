@@ -114,7 +114,7 @@ const handleSubmit = async () => {
     }
 
     if (success) {
-      router.push('/games')
+      router.push('/main')
     }
   } catch (error) {
     errors.value.general = "Une erreur serveur est survenue."

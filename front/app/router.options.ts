@@ -12,5 +12,10 @@ export default <RouterConfig> {
             path: '/login',
             component: () => import('~/pages/login.vue')
         },
+        {
+            name: 'main',
+            path: '/main',
+            component: () => import('~/pages/main.vue')
+        },
     ],
 }
