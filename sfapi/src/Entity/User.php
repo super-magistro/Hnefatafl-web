@@ -8,9 +8,9 @@ use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
-use App\Controller\UserController;
 use App\Repository\UserRepository;
 use App\Security\SecureRules;
+use App\State\MeProvider;
 use App\State\UserPasswordHasher;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
@@ -34,10 +34,11 @@ use Symfony\Component\Serializer\Annotation\Groups;
         ),
         new Get(
             uriTemplate: '/me',
-            controller: UserController::class,
-            security: "is_granted('ROLE_USER')",
-            read: false,
+            security: SecureRules::USER_READ,
+            securityMessage: SecureRules::MSG_USER_READ,
+            read: true,
             name: 'me',
+            provider: MeProvider::class,
         ),
 
         // --- ÉCRITURE (Inscription) ---
