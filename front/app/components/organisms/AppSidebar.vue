@@ -22,13 +22,13 @@
       <div class="flex flex-col gap-4">
 
         <UUser
-            name="Ragnar_Loth"
-            description="Jarl"
+            :name="user?.email ? user.email.split('@')[0] : 'Chargement...'"
+            :description="user?.elo ? `${user.elo} Elo` : '...'"
             class="px-2"
             :avatar="{
-              alt: 'R',
+              alt: user?.email ? user.email.charAt(0).toUpperCase() : '?',
               size: 'md',
-              class: 'bg-vert-900 text-golden-grass-500 ring-1 ring-vert-700 font-bold'
+              class: 'bg-vert-900 text-golden-grass-500 ring-1 ring-vert-700 font-bold uppercase'
             }"
             :ui="{
               name: 'text-sm font-bold text-white',
@@ -39,9 +39,7 @@
         <UButton
             icon="i-lucide-log-out"
             label="Déconnexion"
-            variant="ghost"
-            color="neutral"
-            class="justify-start text-spring-wood-200 hover:text-white hover:bg-vert-700/50 p-2"
+            variant="sidebarButton"
             @click="handleLogout"
         />
 
@@ -52,12 +50,19 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import type { NavigationMenuItem } from '@nuxt/ui'
 
 const { logout } = useAuth()
+const { user, fetchMe } = useMe()
 const router = useRouter()
 const route = useRoute()
+
+onMounted(async () => {
+  if (!user.value) {
+    await fetchMe()
+  }
+})
 
 const navItems = computed<NavigationMenuItem[]>(() => [
   {
