@@ -1,20 +1,18 @@
 <script setup lang="ts">
-// pages/index.vue
-definePageMeta({
-  middleware: [
-    function (to, from) {
-      const { token } = useAuth()
+import { onMounted } from 'vue'
 
-      // Redirection instantanée avant même le rendu de la page
-      if (token.value) {
-        return navigateTo('/main')
-      }
-      return navigateTo('/login')
-    }
-  ]
+const { token } = useAuth()
+
+onMounted(() => {
+  if (token.value) {
+    navigateTo('/main', { replace: true })
+  }
+  else {
+    navigateTo('/login', { replace: true })
+  }
 })
 </script>
 
 <template>
-  <div></div>
+  <MoleculesLoadingScreen />
 </template>
