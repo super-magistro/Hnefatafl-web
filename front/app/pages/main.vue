@@ -1,17 +1,21 @@
-<script setup lang="ts">
-// La logique de ta page viendra ici
-</script>
-
 <template>
-  <div class="flex h-screen overflow-hidden bg-spring-wood-100">
+  <UContainer class="py-12 max-w-5xl">
+    <h1 class="text-4xl font-bold font-['Cinzel'] mb-10">Table de commandement</h1>
+    <div class="grid md:grid-cols-3 gap-6">
+      <NuxtLink to="/games">
+        <UCard class="hover:ring-2 hover:ring-golden-grass-500 cursor-pointer h-full">
+        </UCard>
+      </NuxtLink>
 
-    <OrganismsAppSidebar />
+      <NuxtLink to="/rules">
+        <UCard class="hover:ring-2 hover:ring-golden-grass-500 cursor-pointer h-full">
+        </UCard>
+      </NuxtLink>
 
-    <main class="flex-1 p-8 overflow-y-auto sm:p-12">
-    </main>
-
-  </div>
+      <NuxtLink to="/settings">
+        <UCard class="hover:ring-2 hover:ring-golden-grass-500 cursor-pointer h-full">
+        </UCard>
+      </NuxtLink>
+    </div>
+  </UContainer>
 </template>
-
-<style scoped>
-</style>
