@@ -28,6 +28,7 @@ export const useMe = () => {
 
             token.value = null
             user.value = null
+            navigateTo('/login', { replace: true })
             return false
         }
     }
