@@ -28,7 +28,19 @@ export default <RouterConfig> {
             name: 'games',
             path: '/games',
             component: () => import('~/pages/games.vue'),
-            meta: { layout: 'sidebar' }
+            meta: { layout: 'sidebar' },
+            children: [
+                {
+                    name: 'games-index',
+                    path: '',
+                    component: () => import('~/pages/games/index.vue'),
+                },
+                {
+                    name: 'games-id',
+                    path: ':id',
+                    component: () => import('~/pages/games/[id].vue'),
+                }
+            ]
         },
         {
             name: 'settings',
