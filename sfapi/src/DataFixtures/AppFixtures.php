@@ -4,11 +4,16 @@ namespace App\DataFixtures;
 
 use App\Config\GameRules;
 use App\Entity\GameBoard;
+use App\Entity\User;
 use Doctrine\Bundle\FixturesBundle\Fixture;
 use Doctrine\Persistence\ObjectManager;
+use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 
 class AppFixtures extends Fixture
 {
+    public function __construct(private UserPasswordHasherInterface $passwordHasher)
+    {
+    }
     public function load(ObjectManager $manager): void
     {
         $this->loadBrandubh($manager);
@@ -17,6 +22,7 @@ class AppFixtures extends Fixture
         $this->loadTawlbwrdd($manager);
         $this->loadFetlar($manager);
         $this->loadAleaEvangelii($manager);
+        $this->loadUsers($manager);
 
         $manager->flush();
     }
@@ -30,6 +36,7 @@ class AppFixtures extends Fixture
         $variant = new GameBoard();
         $variant->setName('Brandubh (7x7)');
         $variant->setBoardSize(7);
+        $variant->setDescription('Variante irlandaise rapide et brutale. Les attaquants encerclent étroitement les défenseurs, rendant chaque coup crucial dès le départ.');
 
         // 0=Vide, 1=Attaquant, 2=Défenseur, 3=Roi
         $variant->setInitialLayout([
@@ -73,6 +80,7 @@ class AppFixtures extends Fixture
         $variant = new GameBoard();
         $variant->setName('Tablut (9x9)');
         $variant->setBoardSize(9);
+        $variant->setDescription('La célèbre variante Saami documentée par le botaniste Carl von Linné en Laponie. Très équilibrée et parfaite pour l\'apprentissage.');
 
         $variant->setInitialLayout([
             [0, 0, 0, 1, 1, 1, 0, 0, 0],
@@ -117,6 +125,7 @@ class AppFixtures extends Fixture
         $variant = new GameBoard();
         $variant->setName('Copenhagen (11x11)');
         $variant->setBoardSize(11);
+        $variant->setDescription('Variante moderne conçue pour la compétition. Elle intègre des règles avancées comme la capture en mur de boucliers (Shieldwall).');
 
         $variant->setInitialLayout([
             [0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0],
@@ -166,6 +175,7 @@ class AppFixtures extends Fixture
         $variant = new GameBoard();
         $variant->setName('Tawlbwrdd (11x11)');
         $variant->setBoardSize(11);
+        $variant->setDescription('Une variante galloise historique mentionnée dans les écrits du roi Howel Dda. Le trône central reste toujours hostile à tous sauf au Roi.');
 
         $variant->setInitialLayout([
             [0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0],
@@ -204,6 +214,7 @@ class AppFixtures extends Fixture
         $variant = new GameBoard();
         $variant->setName('Fetlar Hnefatafl (11x11)');
         $variant->setBoardSize(11);
+        $variant->setDescription('Variante originaire de l\'île de Fetlar dans l\'archipel des Shetland. Elle utilise des dispositions de pièces similaires au Copenhagen.');
 
         $variant->setInitialLayout([
             [0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0],
@@ -252,6 +263,7 @@ class AppFixtures extends Fixture
         $variant = new GameBoard();
         $variant->setName('Alea Evangelii (19x19)');
         $variant->setBoardSize(19);
+        $variant->setDescription('Une gigantesque variante anglo-saxonne reconstituée à partir d\'un manuscrit du Xe siècle. Une véritable reconstitution de siège.');
 
         $initial = array_fill(0, 19, array_fill(0, 19, 0));
 
@@ -310,5 +322,26 @@ class AppFixtures extends Fixture
         ]);
 
         $manager->persist($variant);
+    }
+
+    private function loadUsers(ObjectManager $manager): void
+    {
+        $user1 = new User();
+        $user1->setEmail('jarl@hnefatafl.com');
+        $user1->setPassword($this->passwordHasher->hashPassword($user1, 'Password123!'));
+        $user1->setElo(1500);
+        $manager->persist($user1);
+
+        $user2 = new User();
+        $user2->setEmail('ragnar@hnefatafl.com');
+        $user2->setPassword($this->passwordHasher->hashPassword($user2, 'Password123!'));
+        $user2->setElo(1200);
+        $manager->persist($user2);
+
+        $user3 = new User();
+        $user3->setEmail('lagertha@hnefatafl.com');
+        $user3->setPassword($this->passwordHasher->hashPassword($user3, 'Password123!'));
+        $user3->setElo(1350);
+        $manager->persist($user3);
     }
 }
