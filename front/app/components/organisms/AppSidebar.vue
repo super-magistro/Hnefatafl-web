@@ -32,7 +32,7 @@
             }"
             :ui="{
               name: 'text-sm font-bold text-white',
-              description: 'text-xs text-spring-wood-300'
+              description: 'text-xs text-neutral-300'
             }"
         />
 

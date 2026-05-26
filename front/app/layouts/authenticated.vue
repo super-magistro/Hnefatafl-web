@@ -1,5 +1,5 @@
 <template>
-  <div class="flex h-screen overflow-hidden bg-spring-wood-50">
+  <div class="flex h-screen overflow-hidden bg-neutral-50">
     <!-- Barre latérale Viking -->
     <OrganismsAppSidebar />
 

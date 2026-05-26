@@ -1,9 +1,6 @@
 <template>
-  <div class="w-full aspect-square bg-oil-950 p-2 rounded-xl border border-oil-800 shadow-xl">
-    <div
-      class="grid h-full w-full gap-[1px] bg-neutral-800 rounded-lg overflow-hidden"
-      :style="`grid-template-columns: repeat(${boardSize}, minmax(0, 1fr)); grid-template-rows: repeat(${boardSize}, minmax(0, 1fr))`"
-    >
+  <div class="w-full aspect-square bg-neutral-100 p-2 rounded-xl border border-neutral-200 shadow-lg">
+    <div class="grid h-full w-full gap-[1px] bg-neutral-200 rounded-lg overflow-hidden" :style="`grid-template-columns: repeat(${boardSize}, minmax(0, 1fr)); grid-template-rows: repeat(${boardSize}, minmax(0, 1fr))`">
       <BoardCell
         v-for="(cell, index) in cells"
         :key="index"
@@ -49,7 +46,7 @@ const cells = computed<Cell[]>(() => {
       list.push({
         y,
         x,
-        bgColorClass: isEven ? 'bg-spring-wood-200' : 'bg-spring-wood-300',
+        bgColorClass: isEven ? 'bg-neutral-100' : 'bg-neutral-200',
         terrainVal,
         pieceVal
       })

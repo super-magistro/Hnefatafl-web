@@ -47,7 +47,7 @@ export default defineAppConfig({
                     tabActive: 'font-bold text-white bg-primary-700 shadow hover:bg-primary-800 transition-all duration-200',
                     tabInactive: 'font-bold text-oil-950 bg-transparent hover:bg-neutral-200 border-none transition-all duration-200',
                     Link: 'font-medium text-pine-cone-600 hover:text-primary-700 bg-transparent transition-colors p-0',
-                    sidebarButton: 'w-full justify-start py-2 px-3 font-medium text-spring-wood-100 hover:text-white hover:bg-vert-900/50 transition-colors rounded-md bg-transparent'
+                    sidebarButton: 'w-full justify-start py-2 px-3 font-medium text-neutral-100 hover:text-white hover:bg-vert-900/50 transition-colors rounded-md bg-transparent'
                 }
             }
         },
@@ -63,7 +63,7 @@ export default defineAppConfig({
 
         navigationMenu: {
             slots: {
-                link: 'py-2 px-3 mb-1 font-medium text-spring-wood-100 hover:text-white hover:bg-vert-900/50 transition-colors rounded-md bg-transparent',
+                link: 'py-2 px-3 mb-1 font-medium text-neutral-100 hover:text-white hover:bg-vert-900/50 transition-colors rounded-md bg-transparent',
                 linkActive: 'text-golden-grass-500 hover:text-golden-grass-400 bg-vert-900/80 font-bold shadow-sm',
                 icon: 'w-5 h-5 text-current opacity-80 group-hover:opacity-100 transition-opacity'
             }

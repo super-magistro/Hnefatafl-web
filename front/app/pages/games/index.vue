@@ -1,5 +1,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import TabBar from '@/components/atoms/TabBar.vue'
+import GameList from '@/components/organisms/GameList.vue'
+import { useUserMap } from '@/composables/useUserMap'
 
 definePageMeta({
   layout: 'authenticated'
@@ -7,6 +10,7 @@ definePageMeta({
 
 const { apiFetch } = useApi()
 const { user: currentUser, fetchMe } = useMe()
+const { getUserByIri, setUsers } = useUserMap()
 
 // États réactifs
 const games = ref<any[]>([])
@@ -130,6 +134,7 @@ const loadData = async () => {
     games.value = gamesData['hydra:member'] || gamesData['member'] || []
     users.value = usersData['hydra:member'] || usersData['member'] || []
     gameBoards.value = boardsData['hydra:member'] || boardsData['member'] || []
+    setUsers(users.value)
   } catch (err: any) {
     console.error('Erreur lors du chargement des données:', err)
     errorMessage.value = "Impossible de charger le Hall des Batailles. Vérifiez la connexion d'API."
@@ -141,19 +146,6 @@ const loadData = async () => {
 onMounted(() => {
   loadData()
 })
-
-// Dictionnaire pour retrouver les jarls
-const userMap = computed(() => {
-  const map = new Map<string, any>()
-  users.value.forEach(u => {
-    map.set(u['@id'], u)
-  })
-  return map
-})
-
-const getUserByIri = (iri: string) => {
-  return userMap.value.get(iri) || { email: 'En attente...', elo: 1200 }
-}
 
 // Copier le lien d'invitation de la partie
 const copyGameLink = (gameId: number) => {
@@ -443,12 +435,7 @@ const showBotWarning = () => {
     />
 
     <!-- État de chargement global -->
-    <div v-if="isLoading" class="flex flex-col items-center justify-center py-32 space-y-4">
-      <UIcon name="i-lucide-loader-2" class="w-12 h-12 text-primary-600 animate-spin" />
-      <p class="text-sm font-semibold text-pine-cone-600 font-['Cinzel',serif] tracking-wider animate-pulse">
-        Chargement des forces en présence...
-      </p>
-    </div>
+    <MoleculesLoadingScreen v-if="isLoading" />
 
     <!-- Grille Principale (Sélectionneur + Actions) -->
     <div v-else class="space-y-8">
@@ -500,193 +487,39 @@ const showBotWarning = () => {
         </h2>
       </div>
 
-      <div class="flex p-1 rounded-xl bg-spring-wood-200/50 max-w-md border border-neutral-200">
-        <UButton
-            class="flex-1 justify-center py-2 rounded-lg text-xs font-bold transition-all duration-200"
-            :variant="activeTab === 'active' ? 'tabActive' : 'tabInactive'"
-            @click="activeTab = 'active'"
-        >
-          En Cours ({{ activeGames.length }})
-        </UButton>
-        <UButton
-            class="flex-1 justify-center py-2 rounded-lg text-xs font-bold transition-all duration-200"
-            :variant="activeTab === 'pending' ? 'tabActive' : 'tabInactive'"
-            @click="activeTab = 'pending'"
-        >
-          Défis ({{ pendingGames.length }})
-        </UButton>
-        <UButton
-            class="flex-1 justify-center py-2 rounded-lg text-xs font-bold transition-all duration-200"
-            :variant="activeTab === 'finished' ? 'tabActive' : 'tabInactive'"
-            @click="activeTab = 'finished'"
-        >
-          Historique ({{ finishedGames.length }})
-        </UButton>
-      </div>
+      <TabBar :tabs="[
+          { key: 'active', label: 'En Cours', count: activeGames.length },
+          { key: 'pending', label: 'Défis', count: pendingGames.length },
+          { key: 'finished', label: 'Historique', count: finishedGames.length }
+        ]" :activeTab="activeTab" @update:activeTab="activeTab = $event" />
 
       <!-- Contenu des onglets -->
       <div>
         <!-- Onglet 1: En Cours -->
-        <div v-if="activeTab === 'active'" class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          <div v-if="activeGames.length === 0" class="col-span-full text-center py-16 bg-white rounded-2xl border border-neutral-200 p-8 shadow-sm">
-            <UIcon name="i-lucide-shield-alert" class="w-16 h-16 text-neutral-300 mx-auto mb-4" />
-            <h3 class="text-lg font-bold font-['Cinzel',serif] text-neutral-950 mb-2">Aucun combat actif</h3>
-            <p class="text-sm text-pine-cone-500 max-w-sm mx-auto">
-              Le silence règne dans les plaines. Aucun Jarl n'a dégainé son épée contre vous actuellement.
-            </p>
-          </div>
-
-          <UCard
-              v-for="game in activeGames"
-              :key="game.id"
-              variant="subtle"
-              class="hover:shadow-md transition-shadow duration-200 border-l-4 bg-white"
-              :class="isMyTurn(game) ? 'border-l-primary-600' : 'border-l-neutral-300'"
-          >
-            <template #header>
-              <div class="flex items-center justify-between">
-                <span class="font-bold text-xs uppercase tracking-wider text-warning-600 bg-warning-50 px-2.5 py-1 rounded-full">
-                  {{ game.variant }}
-                </span>
-                <span class="text-xs text-pine-cone-500 flex items-center gap-1 font-semibold">
-                  <UIcon name="i-lucide-clock" class="w-3.5 h-3.5" />
-                  {{ game.timeControl }}
-                </span>
-              </div>
-            </template>
-
-            <div class="space-y-4">
-              <!-- Joueurs -->
-              <div class="space-y-2">
-                <div class="flex justify-between items-center text-sm">
-                  <span class="text-pine-cone-600">Attaquant (Noirs) :</span>
-                  <span class="font-bold text-neutral-950 flex items-center gap-1.5">
-                    {{ game.attacker ? getUserByIri(game.attacker).email.split('@')[0] : 'En attente...' }}
-                    <span v-if="game.attacker" class="text-xs text-pine-cone-500 font-medium">({{ getUserByIri(game.attacker).elo }} Elo)</span>
-                  </span>
-                </div>
-                <div class="flex justify-between items-center text-sm">
-                  <span class="text-pine-cone-600">Défenseur (Blancs) :</span>
-                  <span class="font-bold text-neutral-950 flex items-center gap-1.5">
-                    {{ game.defender ? getUserByIri(game.defender).email.split('@')[0] : 'En attente...' }}
-                    <span v-if="game.defender" class="text-xs text-pine-cone-500 font-medium">({{ getUserByIri(game.defender).elo }} Elo)</span>
-                  </span>
-                </div>
-              </div>
-
-              <USeparator />
-
-              <!-- Tour actuel -->
-              <div class="flex justify-between items-center">
-                <span class="text-xs font-semibold uppercase tracking-wider font-['Cinzel',serif]" :class="isMyTurn(game) ? 'text-primary-700 animate-pulse' : 'text-pine-cone-500'">
-                  {{ isMyTurn(game) ? '⚔️ À VOUS DE JOUER' : '🛡️ Attente de l\'adversaire' }}
-                </span>
-                <span class="text-xs text-pine-cone-500 font-medium">{{ game.moves ? game.moves.length : 0 }} coups</span>
-              </div>
+        <GameList v-if="activeTab === 'active'" :games="activeGames" :currentUserId="currentUserId" @copy-link="copyGameLink">
+          <template #empty>
+            <div class="col-span-full text-center py-16 bg-white rounded-2xl border border-neutral-200 p-8 shadow-sm">
+              <UIcon name="i-lucide-shield-alert" class="w-16 h-16 text-neutral-300 mx-auto mb-4" />
+              <h3 class="text-lg font-bold font-['Cinzel',serif] text-neutral-950 mb-2">Aucun combat actif</h3>
+              <p class="text-sm text-pine-cone-500 max-w-sm mx-auto">
+                Le silence règne dans les plaines. Aucun Jarl n'a dégainé son épée contre vous actuellement.
+              </p>
             </div>
-
-            <template #footer>
-              <div class="flex gap-2">
-                <UButton
-                    :to="`/games/${game.id}`"
-                    variant="cta"
-                    class="flex-1 justify-center"
-                    icon="i-lucide-arrow-right"
-                    size="md"
-                >
-                  Rejoindre
-                </UButton>
-                <UButton
-                    variant="outline"
-                    color="neutral"
-                    icon="i-lucide-share-2"
-                    title="Copier le lien d'invitation"
-                    size="md"
-                    @click="copyGameLink(game.id)"
-                    class="shrink-0"
-                />
-              </div>
-            </template>
-          </UCard>
-        </div>
+          </template>
+        </GameList>
 
         <!-- Onglet 2: Défis -->
-        <div v-if="activeTab === 'pending'" class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          <div v-if="pendingGames.length === 0" class="col-span-full text-center py-16 bg-white rounded-2xl border border-neutral-200 p-8 shadow-sm">
-            <UIcon name="i-lucide-scroll" class="w-16 h-16 text-neutral-300 mx-auto mb-4" />
-            <h3 class="text-lg font-bold font-['Cinzel',serif] text-neutral-950 mb-2">Aucun défi lancé</h3>
-            <p class="text-sm text-pine-cone-500 max-w-sm mx-auto">
-              Aucun traité de guerre n'a été signé. Lancez un défi et partagez le lien avec un ami !
-            </p>
-          </div>
-
-          <UCard
-              v-for="game in pendingGames"
-              :key="game.id"
-              variant="subtle"
-              class="border border-neutral-200 bg-white"
-          >
-            <template #header>
-              <div class="flex items-center justify-between">
-                <span class="font-bold text-xs uppercase tracking-wider text-neutral-700 bg-neutral-200 px-2.5 py-1 rounded-full">
-                  {{ game.variant }}
-                </span>
-                <span class="text-xs text-pine-cone-500 flex items-center gap-1 font-semibold">
-                  <UIcon name="i-lucide-clock" class="w-3.5 h-3.5" />
-                  {{ game.timeControl }}
-                </span>
-              </div>
-            </template>
-
-            <div class="space-y-4">
-              <div class="space-y-2">
-                <div class="flex justify-between items-center text-sm">
-                  <span class="text-pine-cone-600">Attaquant (Noirs) :</span>
-                  <span class="font-bold text-neutral-950 flex items-center gap-1.5">
-                    {{ game.attacker ? getUserByIri(game.attacker).email.split('@')[0] : 'En attente...' }}
-                    <span v-if="game.attacker" class="text-xs text-pine-cone-500 font-medium">({{ getUserByIri(game.attacker).elo }} Elo)</span>
-                  </span>
-                </div>
-                <div class="flex justify-between items-center text-sm">
-                  <span class="text-pine-cone-600">Défenseur (Blancs) :</span>
-                  <span class="font-bold text-neutral-950 flex items-center gap-1.5">
-                    {{ game.defender ? getUserByIri(game.defender).email.split('@')[0] : 'En attente...' }}
-                    <span v-if="game.defender" class="text-xs text-pine-cone-500 font-medium">({{ getUserByIri(game.defender).elo }} Elo)</span>
-                  </span>
-                </div>
-              </div>
-
-              <USeparator />
-
-              <div class="text-center bg-neutral-100 py-2.5 rounded-lg border border-neutral-200 text-xs font-semibold text-pine-cone-600">
-                Défi en attente du second joueur.
-              </div>
+        <GameList v-if="activeTab === 'pending'" :games="pendingGames" :currentUserId="currentUserId" @copy-link="copyGameLink">
+          <template #empty>
+            <div class="col-span-full text-center py-16 bg-white rounded-2xl border border-neutral-200 p-8 shadow-sm">
+              <UIcon name="i-lucide-scroll" class="w-16 h-16 text-neutral-300 mx-auto mb-4" />
+              <h3 class="text-lg font-bold font-['Cinzel',serif] text-neutral-950 mb-2">Aucun défi lancé</h3>
+              <p class="text-sm text-pine-cone-500 max-w-sm mx-auto">
+                Aucun traité de guerre n'a été signé. Lancez un défi et partagez le lien avec un ami !
+              </p>
             </div>
-
-            <template #footer>
-              <div class="flex gap-2">
-                <UButton
-                    :to="`/games/${game.id}`"
-                    variant="cta"
-                    class="flex-1 justify-center"
-                    icon="i-lucide-swords"
-                    size="md"
-                >
-                  Ouvrir
-                </UButton>
-                <UButton
-                    variant="outline"
-                    color="neutral"
-                    icon="i-lucide-share-2"
-                    title="Copier le lien d'invitation"
-                    size="md"
-                    @click="copyGameLink(game.id)"
-                    class="shrink-0"
-                />
-              </div>
-            </template>
-          </UCard>
-        </div>
+          </template>
+        </GameList>
 
         <!-- Onglet 3: Historique -->
         <div v-if="activeTab === 'finished'" class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -787,7 +620,7 @@ const showBotWarning = () => {
 
           <form @submit.prevent="handleCreateGame" class="space-y-5">
             <!-- Choix du variant fixe d'après la sélection active -->
-            <div class="bg-spring-wood-100 border border-neutral-200 p-3.5 rounded-xl">
+            <div class="bg-neutral-100 border border-neutral-200 p-3.5 rounded-xl">
               <span class="text-xs font-bold text-pine-cone-500 uppercase tracking-wider block">Variante Sélectionnée</span>
               <span class="text-base font-extrabold text-neutral-950 block mt-0.5">{{ selectedBoard.name }}</span>
             </div>

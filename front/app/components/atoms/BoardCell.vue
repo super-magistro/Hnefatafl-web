@@ -46,7 +46,7 @@ const pieceClass = computed(() => {
   const val = props.cell.pieceVal;
   return [
     val === 1 ? 'bg-oil-900 border border-oil-950 text-white' : '',
-    val === 2 ? 'bg-spring-wood-50 border border-spring-wood-400 text-oil-950 shadow-inner' : '',
+    val === 2 ? 'bg-neutral-50 border border-neutral-400 text-oil-950 shadow-inner' : '',
     val === 3 ? 'bg-warning-500 border border-warning-600 text-warning-950 font-black ring-[1px] ring-warning-300 scale-105 shadow-md' : ''
   ];
 });

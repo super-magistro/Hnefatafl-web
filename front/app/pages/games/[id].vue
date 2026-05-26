@@ -321,7 +321,7 @@ const getMoveLabel = (move: any) => {
         Retour au Hall des Batailles
       </UButton>
 
-      <span v-if="game" class="text-xs font-semibold text-pine-cone-500 bg-spring-wood-200 px-3 py-1 rounded-full uppercase tracking-wider">
+      <span v-if="game" class="text-xs font-semibold text-pine-cone-500 bg-neutral-200 px-3 py-1 rounded-full uppercase tracking-wider">
         Variante : {{ game.variant }} ({{ boardSize }}x{{ boardSize }})
       </span>
     </div>
@@ -350,7 +350,7 @@ const getMoveLabel = (move: any) => {
       <!-- Colonne Plateau (8/12) -->
       <div class="lg:col-span-8 flex flex-col items-center">
         <!-- Infos Joueurs au dessus du plateau -->
-        <div class="w-full max-w-[600px] flex items-center justify-between mb-4 bg-white p-4 rounded-xl border border-spring-wood-200 shadow-sm">
+        <div class="w-full max-w-[600px] flex items-center justify-between mb-4 bg-white p-4 rounded-xl border border-neutral-200 shadow-sm">
           <!-- Adversaire -->
           <div class="flex items-center gap-3">
             <div class="w-10 h-10 rounded-full flex-center bg-oil-100 text-oil-950 font-bold text-lg ring-1 ring-oil-200">
@@ -370,7 +370,7 @@ const getMoveLabel = (move: any) => {
             <span v-else-if="isMyTurn" class="text-xs font-extrabold text-white bg-primary-700 px-3 py-1.5 rounded-full uppercase tracking-wider animate-pulse flex items-center gap-1.5 shadow-md">
               <span>⚔️ À VOUS</span>
             </span>
-            <span v-else class="text-xs font-semibold text-pine-cone-600 bg-spring-wood-100 border border-spring-wood-200 px-3 py-1.5 rounded-full uppercase tracking-wider">
+            <span v-else class="text-xs font-semibold text-pine-cone-600 bg-neutral-100 border border-neutral-200 px-3 py-1.5 rounded-full uppercase tracking-wider">
               ⌛ Tour adverse
             </span>
           </div>
@@ -391,8 +391,8 @@ const getMoveLabel = (move: any) => {
                 :class="[
                   // Alternance de couleur du plateau
                   (Math.floor((idx - 1) / boardSize) + ((idx - 1) % boardSize)) % 2 === 0
-                    ? 'bg-spring-wood-200 hover:bg-spring-wood-300'
-                    : 'bg-spring-wood-300 hover:bg-spring-wood-400',
+                     ? 'bg-neutral-200 hover:bg-neutral-300'
+                     : 'bg-neutral-300 hover:bg-neutral-400',
                   
                   // Style spécial Trône (Centre)
                   boardDetails.terrainLayout[Math.floor((idx - 1) / boardSize)][(idx - 1) % boardSize] === 1
@@ -430,7 +430,7 @@ const getMoveLabel = (move: any) => {
                     
                     // Défenseur (2) - Beige / Cuir
                     currentBoardState[Math.floor((idx - 1) / boardSize)][(idx - 1) % boardSize] === 2
-                      ? 'bg-spring-wood-50 border-2 border-spring-wood-400 text-oil-950 text-xs shadow-inner'
+                      ? 'bg-neutral-50 border-2 border-neutral-400 text-oil-950 text-xs shadow-inner'
                       : '',
                     
                     // Le Roi (3) - Trône / Or étincelant
@@ -455,7 +455,7 @@ const getMoveLabel = (move: any) => {
         </div>
 
         <!-- Infos Joueur en dessous du plateau -->
-        <div class="w-full max-w-[600px] flex items-center justify-between mt-4 bg-white p-4 rounded-xl border border-spring-wood-200 shadow-sm">
+        <div class="w-full max-w-[600px] flex items-center justify-between mt-4 bg-white p-4 rounded-xl border border-neutral-200 shadow-sm">
           <div class="flex items-center gap-3">
             <div class="w-10 h-10 rounded-full flex-center bg-primary-700 text-golden-grass-500 font-bold text-lg ring-1 ring-primary-800">
               {{ currentUser?.email?.charAt(0).toUpperCase() || 'V' }}
@@ -504,14 +504,14 @@ const getMoveLabel = (move: any) => {
             <!-- Liste des coups -->
             <div class="space-y-2">
               <span class="text-xs font-bold text-pine-cone-600 uppercase tracking-wider">Journal de combat :</span>
-              <div class="h-[180px] overflow-y-auto border border-spring-wood-200 rounded-xl bg-white p-3 space-y-1.5 text-sm font-medium">
+              <div class="h-[180px] overflow-y-auto border border-neutral-200 rounded-xl bg-white p-3 space-y-1.5 text-sm font-medium">
                 <div v-if="!game.moves || game.moves.length === 0" class="text-xs text-pine-cone-400 text-center py-10">
                   Aucun mouvement n'a encore été tenté. Que la bataille commence !
                 </div>
                 <div 
                     v-for="(move, idx) in game.moves" 
                     :key="idx"
-                    class="flex justify-between items-center py-1 px-2 rounded hover:bg-spring-wood-50"
+                    class="flex justify-between items-center py-1 px-2 rounded hover:bg-neutral-50"
                 >
                   <span class="text-xs text-pine-cone-400 font-bold">#{{ idx + 1 }}</span>
                   <span class="font-bold text-oil-900">{{ getMoveLabel(move) }}</span>

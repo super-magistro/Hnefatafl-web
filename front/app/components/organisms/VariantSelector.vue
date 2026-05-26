@@ -1,5 +1,5 @@
 <template>
-  <UCard class="w-full h-full bg-gradient-to-br from-spring-wood-100 to-spring-wood-50 border border-neutral-200 shadow-lg">
+  <UCard class="w-full h-full bg-gradient-to-br from-neutral-100 to-neutral-50 border border-neutral-200 shadow-lg">
     <template #header>
       <div class="flex items-center justify-between">
         <UButton 
@@ -45,28 +45,28 @@
         </p>
 
         <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <div class="bg-spring-wood-200/40 border border-neutral-200 p-2.5 rounded-xl text-center">
+          <div class="bg-neutral-200/40 border border-neutral-200 p-2.5 rounded-xl text-center">
             <span class="block text-[10px] font-bold text-pine-cone-500 uppercase tracking-wider">Victoire</span>
             <span class="text-xs font-black text-neutral-900 flex items-center justify-center gap-1 mt-1">
               <UIcon name="i-lucide-crown" class="text-warning-500 w-3.5 h-3.5" />
               {{ board.rulesSummary?.winCondition }}
             </span>
           </div>
-          <div class="bg-spring-wood-200/40 border border-neutral-200 p-2.5 rounded-xl text-center">
+          <div class="bg-neutral-200/40 border border-neutral-200 p-2.5 rounded-xl text-center">
             <span class="block text-[10px] font-bold text-pine-cone-500 uppercase tracking-wider">Capture Roi</span>
             <span class="text-xs font-black text-neutral-900 flex items-center justify-center gap-1 mt-1">
               <UIcon name="i-lucide-swords" class="text-warning-500 w-3.5 h-3.5" />
               {{ board.rulesSummary?.kingCapture }}
             </span>
           </div>
-          <div class="bg-spring-wood-200/40 border border-neutral-200 p-2.5 rounded-xl text-center">
+          <div class="bg-neutral-200/40 border border-neutral-200 p-2.5 rounded-xl text-center">
             <span class="block text-[10px] font-bold text-pine-cone-500 uppercase tracking-wider">Armement Roi</span>
             <span class="text-xs font-black text-neutral-900 flex items-center justify-center gap-1 mt-1">
               <UIcon name="i-lucide-shield" class="text-warning-500 w-3.5 h-3.5" />
               {{ board.rulesSummary?.kingWeapon }}
             </span>
           </div>
-          <div class="bg-spring-wood-200/40 border border-neutral-200 p-2.5 rounded-xl text-center">
+          <div class="bg-neutral-200/40 border border-neutral-200 p-2.5 rounded-xl text-center">
             <span class="block text-[10px] font-bold text-pine-cone-500 uppercase tracking-wider">Hostilité Trône</span>
             <span class="text-xs font-black text-neutral-900 flex items-center justify-center gap-1 mt-1">
               <UIcon name="i-lucide-alert-triangle" class="text-warning-500 w-3.5 h-3.5" />
