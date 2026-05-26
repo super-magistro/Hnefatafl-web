@@ -1,5 +1,5 @@
 <template>
-  <UCard class="w-full h-full bg-gradient-to-br from-neutral-100 to-neutral-50 border border-neutral-200 shadow-lg">
+  <UCard class="w-full h-full bg-white border border-neutral-200 shadow-lg">
     <template #header>
       <div class="flex items-center justify-between">
         <UButton 

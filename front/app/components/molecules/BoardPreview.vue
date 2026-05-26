@@ -1,6 +1,6 @@
 <template>
-  <div class="w-full aspect-square bg-neutral-100 p-2 rounded-xl border border-neutral-200 shadow-lg">
-    <div class="grid h-full w-full gap-[1px] bg-neutral-200 rounded-lg overflow-hidden" :style="`grid-template-columns: repeat(${boardSize}, minmax(0, 1fr)); grid-template-rows: repeat(${boardSize}, minmax(0, 1fr))`">
+  <div class="w-full aspect-square bg-neutral-100 p-2 rounded-xl border border-neutral-400 shadow-lg">
+    <div class="grid h-full w-full gap-[1px] bg-neutral-300 rounded-lg overflow-hidden" :style="`grid-template-columns: repeat(${boardSize}, minmax(0, 1fr)); grid-template-rows: repeat(${boardSize}, minmax(0, 1fr))`">
       <BoardCell
         v-for="(cell, index) in cells"
         :key="index"

@@ -18,7 +18,7 @@ export default defineAppConfig({
                 variant: {
                     // Une nouvelle variante pour les cartes intérieures !
                     subtle: {
-                        root: 'bg-neutral-50 shadow-none ring-1 ring-neutral-200',
+                        root: 'bg-white shadow-none ring-1 ring-neutral-200',
                         body: 'p-6 sm:p-8'
                     }
                 }
