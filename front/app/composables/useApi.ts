@@ -1,6 +1,6 @@
 export const useApi = () => {
     const config = useRuntimeConfig()
-    const token = useCookie('auth_token')
+    const token = useCookie('auth_token', { maxAge: 2592000 })
 
     // apiFetch encapsule les appels à l'API Symfony en ajoutant automatiquement 
     // le token JWT d'authentification s'il est présent, ainsi que les headers appropriés.
