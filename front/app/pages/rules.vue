@@ -17,36 +17,16 @@ const selectedBoard = computed(() => {
 })
 
 // Traduction dynamique cohérente avec le Hall des Batailles
-const winConditionText = computed(() => {
-  if (!selectedBoard.value) return '...'
-  const cond = selectedBoard.value.rules?.win_condition
-  if (cond === 'corner') return 'Coins (4)'
-  if (cond === 'edge') return 'Bords'
-  return 'Bords'
-})
-
-const kingCaptureText = computed(() => {
-  if (!selectedBoard.value) return '...'
-  const capt = selectedBoard.value.rules?.king_capture
-  if (capt === '2_sides') return '2 côtés (Roi faible)'
-  if (capt === '4_sides') return '4 côtés (Roi fort)'
-  return '4 côtés'
-})
-
-const kingWeaponText = computed(() => {
-  if (!selectedBoard.value) return '...'
-  const wp = selectedBoard.value.rules?.king_weapon
-  if (wp === 'unarmed' || wp === 'weak') return 'Désarmé'
-  return 'Armé'
-})
-
-const throneHostilityText = computed(() => {
-  if (!selectedBoard.value) return '...'
-  const host = selectedBoard.value.rules?.throne_hostility
-  if (host === 'always') return 'Toujours hostile'
-  if (host === 'empty') return 'Hostile vide'
-  if (host === 'never') return 'Jamais hostile'
-  return 'Hostile vide'
+const rulesSummary = computed(() => {
+  if (!selectedBoard.value) {
+    return {
+      winCondition: '...',
+      kingCapture: '...',
+      kingWeapon: '...',
+      throneHostility: '...'
+    }
+  }
+  return translateBoardRules(selectedBoard.value.rules)
 })
 
 // Accès sécurisé à l'API
@@ -264,7 +244,7 @@ const nextVariant = () => {
                       <div>
                         <h4 class="text-xs font-bold text-neutral-500 uppercase">Échappée du Roi</h4>
                         <p class="text-sm font-semibold text-neutral-900 mt-1">
-                          {{ winConditionText }}
+                          {{ rulesSummary.winCondition }}
                         </p>
                       </div>
                     </div>
@@ -277,7 +257,7 @@ const nextVariant = () => {
                       <div>
                         <h4 class="text-xs font-bold text-neutral-500 uppercase">Capture du Roi</h4>
                         <p class="text-sm font-semibold text-neutral-900 mt-1">
-                          {{ kingCaptureText }}
+                          {{ rulesSummary.kingCapture }}
                         </p>
                       </div>
                     </div>
@@ -290,7 +270,7 @@ const nextVariant = () => {
                       <div>
                         <h4 class="text-xs font-bold text-neutral-500 uppercase">Hostilité du Trône</h4>
                         <p class="text-sm font-semibold text-neutral-900 mt-1">
-                          {{ throneHostilityText }}
+                          {{ rulesSummary.throneHostility }}
                         </p>
                       </div>
                     </div>
@@ -303,7 +283,7 @@ const nextVariant = () => {
                       <div>
                         <h4 class="text-xs font-bold text-neutral-500 uppercase">Combat du Roi</h4>
                         <p class="text-sm font-semibold text-neutral-900 mt-1">
-                          {{ kingWeaponText }}
+                          {{ rulesSummary.kingWeapon }}
                         </p>
                       </div>
                     </div>
