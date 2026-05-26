@@ -34,7 +34,7 @@ class AppFixtures extends Fixture
     private function loadBrandubh(ObjectManager $manager): void
     {
         $variant = new GameBoard();
-        $variant->setName('Brandubh (7x7)');
+        $variant->setName('Brandubh');
         $variant->setBoardSize(7);
         $variant->setDescription('Variante irlandaise rapide et brutale. Les attaquants encerclent étroitement les défenseurs, rendant chaque coup crucial dès le départ.');
 
@@ -78,7 +78,7 @@ class AppFixtures extends Fixture
     private function loadTablut(ObjectManager $manager): void
     {
         $variant = new GameBoard();
-        $variant->setName('Tablut (9x9)');
+        $variant->setName('Tablut');
         $variant->setBoardSize(9);
         $variant->setDescription('La célèbre variante Saami documentée par le botaniste Carl von Linné en Laponie. Très équilibrée et parfaite pour l\'apprentissage.');
 
@@ -123,7 +123,7 @@ class AppFixtures extends Fixture
     private function loadCopenhagen(ObjectManager $manager): void
     {
         $variant = new GameBoard();
-        $variant->setName('Copenhagen (11x11)');
+        $variant->setName('Copenhagen');
         $variant->setBoardSize(11);
         $variant->setDescription('Variante moderne conçue pour la compétition. Elle intègre des règles avancées comme la capture en mur de boucliers (Shieldwall).');
 
@@ -173,7 +173,7 @@ class AppFixtures extends Fixture
     private function loadTawlbwrdd(ObjectManager $manager): void
     {
         $variant = new GameBoard();
-        $variant->setName('Tawlbwrdd (11x11)');
+        $variant->setName('Tawlbwrdd');
         $variant->setBoardSize(11);
         $variant->setDescription('Une variante galloise historique mentionnée dans les écrits du roi Howel Dda. Le trône central reste toujours hostile à tous sauf au Roi.');
 
@@ -212,7 +212,7 @@ class AppFixtures extends Fixture
     private function loadFetlar(ObjectManager $manager): void
     {
         $variant = new GameBoard();
-        $variant->setName('Fetlar Hnefatafl (11x11)');
+        $variant->setName('Fetlar Hnefatafl');
         $variant->setBoardSize(11);
         $variant->setDescription('Variante originaire de l\'île de Fetlar dans l\'archipel des Shetland. Elle utilise des dispositions de pièces similaires au Copenhagen.');
 
@@ -261,7 +261,7 @@ class AppFixtures extends Fixture
     private function loadAleaEvangelii(ObjectManager $manager): void
     {
         $variant = new GameBoard();
-        $variant->setName('Alea Evangelii (19x19)');
+        $variant->setName('Alea Evangelii');
         $variant->setBoardSize(19);
         $variant->setDescription('Une gigantesque variante anglo-saxonne reconstituée à partir d\'un manuscrit du Xe siècle. Une véritable reconstitution de siège.');
 
