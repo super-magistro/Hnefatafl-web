@@ -502,7 +502,7 @@ const showBotWarning = () => {
               <UIcon name="i-lucide-shield-alert" class="w-16 h-16 text-neutral-300 mx-auto mb-4" />
               <h3 class="text-lg font-bold font-['Cinzel',serif] text-neutral-950 mb-2">Aucun combat actif</h3>
               <p class="text-sm text-pine-cone-500 max-w-sm mx-auto">
-                Le silence règne dans les plaines. Aucun Jarl n'a dégainé son épée contre vous actuellement.
+                Le silence règne dans les plaines. Aucun joueur n'a dégainé son épée contre vous actuellement.
               </p>
             </div>
           </template>

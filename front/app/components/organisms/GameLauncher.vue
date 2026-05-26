@@ -22,7 +22,7 @@
             Bataille Rapide
           </span>
           <span class="text-xs text-neutral-200 font-normal mt-1 normal-case tracking-wide">
-            Affronter un Jarl de votre force (Elo : {{ userElo }})
+            Affronter un joueur de votre force (Elo : {{ userElo }})
           </span>
         </div>
       </UButton>

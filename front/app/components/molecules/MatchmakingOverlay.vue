@@ -8,7 +8,7 @@
       Entrée dans la taverne de combat...
     </h3>
     <p class="text-sm text-pine-cone-600 max-w-xs mb-4">
-      Nous recherchons un Jarl digne d'affronter vos troupes dans l'arène.
+      Nous recherchons un joueur digne d'affronter vos troupes dans l'arène.
     </p>
 
     <div class="bg-neutral-200/80 border border-neutral-300 px-4 py-2 rounded-full text-xs font-bold text-neutral-950 inline-block mb-6 shadow-sm">

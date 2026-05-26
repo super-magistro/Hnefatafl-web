@@ -492,7 +492,7 @@ const getMoveLabel = (move: any) => {
               <UIcon name="i-lucide-crown" class="w-10 h-10 text-golden-grass-500 mx-auto animate-bounce" />
               <h4 class="font-bold font-['Cinzel',serif] text-primary-900 text-base">Victoire de</h4>
               <p class="text-lg font-extrabold text-primary-950">
-                {{ game.winner ? (game.winner.email ? game.winner.email.split('@')[0] : 'Jarl Gagnant') : 'Égalité' }}
+                {{ game.winner ? (game.winner.email ? game.winner.email.split('@')[0] : 'Joueur Gagnant') : 'Égalité' }}
               </p>
             </div>
 
