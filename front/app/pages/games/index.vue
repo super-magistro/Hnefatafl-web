@@ -34,7 +34,7 @@ const selectedSide = ref<'attacker' | 'defender' | 'random'>('random')
 const selectedTimeControl = ref('10+5')
 
 // Index du variant sélectionné
-const selectedBoardIndex = ref(0)
+const selectedBoardIndex = useState('selectedBoardIndex', () => 0)
 
 // Matchmaking
 const isMatching = ref(false)
