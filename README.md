@@ -6,7 +6,7 @@ Le projet est conçu avec une architecture découplée moderne : un front-end r�
 
 ---
 
-##️ Stack Technique
+## Stack Technique
 
 ### Front-end
 - **Framework** : [Nuxt 4](https://nuxt.com/) (mode `app` structure, Composition API `<script setup>`).
