@@ -6,6 +6,7 @@ use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Post;
+use ApiPlatform\Metadata\Patch;
 use App\Controller\GamePlayController;
 use App\Controller\GameResignController;
 use App\Repository\GameRepository;
@@ -25,6 +26,10 @@ use Doctrine\ORM\Mapping as ORM;
         new Post(
             uriTemplate: '/games',
             description: 'Créer une partie',
+        ),
+        new Patch(
+            uriTemplate: '/games/{id}',
+            description: 'Mettre à jour/Rejoindre une partie',
         ),
 
         new Post(
@@ -55,11 +60,11 @@ class Game
     private ?int $id = null;
 
     #[ORM\ManyToOne(inversedBy: 'gamesAsAttacker')]
-    #[ORM\JoinColumn(nullable: false)]
+    #[ORM\JoinColumn(nullable: true)]
     private ?User $attacker = null;
 
     #[ORM\ManyToOne(inversedBy: 'gamesAsDefender')]
-    #[ORM\JoinColumn(nullable: false)]
+    #[ORM\JoinColumn(nullable: true)]
     private ?User $defender = null;
 
     #[ORM\ManyToOne]
@@ -90,7 +95,7 @@ class Game
     #[ORM\Column(nullable: true)]
     private ?int $defenderTimeLeft = null;
 
-    #[ORM\ManyToOne]
+    #[ORM\ManyToOne(inversedBy: 'games')]
     #[ORM\JoinColumn(nullable: false)]
     private ?GameBoard $gameBoard = null;
 

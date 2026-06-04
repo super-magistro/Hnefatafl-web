@@ -1,93 +1,126 @@
-# Hnefatafl
+# Hnefatafl Online
 
+**Hnefatafl Online** est une plateforme web moderne permettant de jouer au célèbre jeu de stratégie asymétrique Viking, le *Hnefatafl* (le jeu de plateau des rois), ainsi qu'à ses multiples variantes historiques (Tablut, Copenhagen, etc.). 
 
+Le projet est conçu avec une architecture découplée moderne : un front-end réactif développé avec **Nuxt 4**, une API REST performante propulsée par **Symfony 7.4** et **API Platform v4**, le tout conteneurisé sous **Docker** et orchestré avec **Docker Compose**.
 
-## Getting started
+---
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+## Stack Technique
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+### Front-end
+- **Framework** : [Nuxt 4](https://nuxt.com/) (mode `app` structure, Composition API `<script setup>`).
+- **Langage** : [TypeScript](https://www.typescriptlang.org/) (mode strict).
+- **UI Framework** : [Nuxt UI v4](https://ui.nuxt.com/) & [Tailwind CSS](https://tailwindcss.com/) pour une interface élégante et thématique.
+- **Thème Visuel** : Palette sémantique personnalisée centralisée dans `app.config.ts` :
+  - `primary` : Vert de la forêt (ambiance Viking).
+  - `neutral` : Spring-wood (Beige/Papyrus pour les fonds).
+  - `warning` : Golden-grass (Or/Butin pour les accents et mises en avant).
+  - `error` : Red (Sang/Alerte pour les actions critiques et camps attaquants).
 
-## Add your files
+### Back-end & API
+- **Framework** : [Symfony 7.4](https://symfony.com/) avec [API Platform v4](https://api-platform.com/).
+- **Authentification** : JWT sécurisé via [LexikJWTAuthenticationBundle](https://github.com/lexik/LexikJWTAuthenticationBundle) avec session persistante longue durée (30 jours).
+- **Base de Données** : MySQL 8.
+- **Moteur d'ORM** : Doctrine ORM.
 
-- [ ] [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-- [ ] [Add files using the command line](https://docs.gitlab.com/topics/git/add_files/#add-files-to-a-git-repository) or push an existing Git repository with the following command:
+### Infrastructure & Conteneurisation
+- Orchestration complète via **Docker Compose** :
+  - `nginx` : Serveur web servant l'API Symfony.
+  - `sfapi` : Conteneur PHP 8.2+ faisant tourner le backend Symfony.
+  - `database` : Conteneur MySQL (port local `3307`).
+  - `front` : Conteneur Node.js (Alpine) servant l'application Nuxt sur le port `3000` avec hot-reload.
 
+---
+
+## Structure du Projet
+
+Le dépôt est découpé de la manière suivante :
+
+```text
+├── build/                 # Configuration et Dockerfiles (nginx, sfapi, database)
+├── front/                 # Application Front-end Nuxt 4
+│   ├── app/               # Code source Nuxt 4 (pages, components, layouts, utils)
+│   ├── public/            # Assets publics statiques
+│   ├── nuxt.config.ts     # Configuration de Nuxt
+│   └── package.json       # Dépendances Node.js
+├── sfapi/                 # API Back-end Symfony 7.4
+│   ├── config/            # Configuration de l'application Symfony
+│   ├── src/               # Code source PHP (Entities, Controllers, Repositories)
+│   ├── migrations/        # Migrations de la base de données SQL
+│   └── composer.json      # Dépendances PHP
+├── composables/           # Composables partagés (ex: useAuth.ts)
+├── scratch/               # Scripts et données de test (fichiers JSON)
+├── compose.yaml           # Fichier d'orchestration Docker Compose
+├── GEMINI.md              # Conventions de développement et de style pour l'IA
+└── README.md              # Documentation principale du projet (ce fichier)
 ```
-cd existing_repo
-git remote add origin https://forge.iut-larochelle.fr/sucrettes-freaky/gpasdid/personal-project/hnefatafl.git
-git branch -M main
-git push -uf origin main
+
+---
+
+## Installation et Lancement
+
+### Prérequis
+Assurez-vous d'avoir installé :
+- **Docker** et **Docker Compose**
+- Un client Git
+
+### Étape 1 : Démarrage des Conteneurs
+À la racine du projet, lancez la commande suivante pour construire et démarrer les conteneurs :
+
+```bash
+docker compose up -d --build
 ```
 
-## Integrate with your tools
+- Le **Front-end** sera accessible sur : [http://localhost:3000](http://localhost:3000) (il installe automatiquement les dépendances `npm` lors du premier lancement).
+- L'**API Platform Symfony** sera accessible sur : [http://localhost:8000](http://localhost:8000) (avec la documentation Swagger interactive sur `/api`).
 
-- [ ] [Set up project integrations](https://forge.iut-larochelle.fr/sucrettes-freaky/gpasdid/personal-project/hnefatafl/-/settings/integrations)
+### Étape 2 : Initialisation de la Base de Données
+Une fois les conteneurs démarrés, appliquez les migrations et chargez les fixtures de test (variantes de plateaux, utilisateurs, etc.) :
 
-## Collaborate with your team
+```bash
+# Se connecter au conteneur PHP et installer les dépendances composer si nécessaire
+docker compose exec sfapi composer install
 
-- [ ] [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
-- [ ] [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
-- [ ] [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
-- [ ] [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
-- [ ] [Set auto-merge](https://docs.gitlab.com/user/project/merge_requests/auto_merge/)
+# Exécuter les migrations de base de données
+docker compose exec sfapi php bin/console doctrine:migrations:migrate --no-interaction
 
-## Test and Deploy
+# Charger les fixtures de départ (Variantes historiques, Utilisateurs de test)
+docker compose exec sfapi php bin/console doctrine:fixtures:load --no-interaction
+```
 
-Use the built-in continuous integration in GitLab.
+---
 
-- [ ] [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/)
-- [ ] [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
-- [ ] [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
-- [ ] [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
-- [ ] [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
+## Fonctionnalités Clés Implémentées
 
-***
+1. **Manuel de Règles Dynamique (`/rules`)** :
+   - Fiches de règles adaptées en temps réel à chaque variante de plateau (Tablut, Hnefatafl, etc.).
+   - Traduction centralisée de la configuration de l'API (ex: Roi fort/faible, trône hostile ou non) via un utilitaire partagé [boardRules.ts](file:///home/romain-guillon/Bureau/Camileia/prv/Hnefatafl-web/front/app/utils/boardRules.ts).
+   - Rendu interactif du plateau grâce au composant `MoleculesBoardPreview`.
 
-# Editing this README
+2. **Système de Matchmaking ELO Asynchrone** :
+   - Recherche rapide d'adversaire avec extension automatique et progressive de la plage d'ELO autorisée (+30 ELO toutes les 500 ms) pour garantir un matchmaking équitable et réactif.
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
+3. **Création et Partage de Défis Amis** :
+   - Configuration personnalisée de défis (camp, cadence de jeu).
+   - Génération d'un lien unique de combat copié directement dans le presse-papiers (`navigator.clipboard` avec fallback text-area).
 
-## Suggestions for a good README
+4. **Authentification JWT Robuste** :
+   - Persistance longue durée configurée pour **30 jours** (côté serveur JWT et cookie client `auth_token`).
+   - Détection automatique d'expiration et déconnexion réactive en cas de réponse `401 Unauthorized` de l'API.
 
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
+5. **Indexation & Cache des Joueurs** :
+   - Utilisation du composable réactif `useUserMap` stockant localement sous forme de `Map` l'ensemble des profils pour éviter les requêtes API redondantes lors de l'affichage des parties.
 
-## Name
-Choose a self-explaining name for your project.
+---
 
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
+## Conventions de Développement
 
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
-
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
-
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
-
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
-
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
-
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
-
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
-
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
-
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
-
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
-
-## License
-For open source projects, say how it is licensed.
-
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+Toutes les modifications du projet doivent respecter les consignes définies dans le fichier [GEMINI.md](file:///home/romain-guillon/Bureau/Camileia/prv/Hnefatafl-web/GEMINI.md), en particulier :
+- **Pas de CSS Inline** : Utilisez exclusivement les classes de Tailwind CSS.
+- **Thème centralisé** : Utilisez uniquement les clés sémantiques de couleurs (`primary`, `neutral`, `warning`, `error`).
+- **Composants Nuxt UI** : Utilisez les composants natifs de Nuxt UI (`<UCard>`, `<UContainer>`, etc.) en privilégiant la configuration via `app.config.ts`.
+- **Typage Strict** : Pas de type `any` en TypeScript, typez rigoureusement les props et les refs.
+- **Conventions de Commit** :
+  - Format : `[Type] Description`
+  - Types : `[Feat]`, `[Fix]`, `[Refa]`, `[Docs]`, `[Style]`

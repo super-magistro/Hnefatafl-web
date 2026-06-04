@@ -2,7 +2,7 @@ export const useAuth = () => {
     const config = useRuntimeConfig()
 
     // On crée un cookie 'auth_token' qui survivra si on ferme le navigateur
-    const token = useCookie('auth_token')
+    const token = useCookie('auth_token', { maxAge: 2592000 })
 
     // Une variable d'état pour savoir si on est connecté
     const user = useState('user', () => null)

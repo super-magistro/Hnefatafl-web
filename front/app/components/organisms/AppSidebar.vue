@@ -28,11 +28,11 @@
             :avatar="{
               alt: user?.email ? user.email.charAt(0).toUpperCase() : '?',
               size: 'md',
-              class: 'bg-vert-900 text-golden-grass-500 ring-1 ring-vert-700 font-bold uppercase'
+              class: 'bg-primary-800 border-none text-warning-500 ring-1 ring-primary-700 font-bold uppercase'
             }"
             :ui="{
               name: 'text-sm font-bold text-white',
-              description: 'text-xs text-spring-wood-300'
+              description: 'text-xs text-neutral-300'
             }"
         />
 

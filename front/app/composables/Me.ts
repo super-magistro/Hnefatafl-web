@@ -1,7 +1,7 @@
 export const useMe = () => {
     const config = useRuntimeConfig()
 
-    const token = useCookie('auth_token')
+    const token = useCookie('auth_token', { maxAge: 2592000 })
 
     const user = useState<any | null>('user', () => null)
 
@@ -28,6 +28,7 @@ export const useMe = () => {
 
             token.value = null
             user.value = null
+            navigateTo('/login', { replace: true })
             return false
         }
     }
