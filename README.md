@@ -1,4 +1,4 @@
-# Hnefatafl Online ⚔️
+# Hnefatafl Online
 
 **Hnefatafl Online** est une plateforme web moderne permettant de jouer au célèbre jeu de stratégie asymétrique Viking, le *Hnefatafl* (le jeu de plateau des rois), ainsi qu'à ses multiples variantes historiques (Tablut, Copenhagen, etc.). 
 
@@ -6,7 +6,7 @@ Le projet est conçu avec une architecture découplée moderne : un front-end r�
 
 ---
 
-## 🛠️ Stack Technique
+##️ Stack Technique
 
 ### Front-end
 - **Framework** : [Nuxt 4](https://nuxt.com/) (mode `app` structure, Composition API `<script setup>`).
@@ -33,7 +33,7 @@ Le projet est conçu avec une architecture découplée moderne : un front-end r�
 
 ---
 
-## 📂 Structure du Projet
+## Structure du Projet
 
 Le dépôt est découpé de la manière suivante :
 
