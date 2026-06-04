@@ -91,7 +91,7 @@ docker compose exec sfapi php bin/console doctrine:fixtures:load --no-interactio
 
 ---
 
-## ⚔Fonctionnalités Clés Implémentées
+## Fonctionnalités Clés Implémentées
 
 1. **Manuel de Règles Dynamique (`/rules`)** :
    - Fiches de règles adaptées en temps réel à chaque variante de plateau (Tablut, Hnefatafl, etc.).
