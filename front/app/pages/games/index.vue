@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
 import TabBar from '@/components/atoms/TabBar.vue'
 import GameList from '@/components/organisms/GameList.vue'
 import { useUserMap } from '@/composables/useUserMap'
@@ -40,7 +39,7 @@ const selectedBoardIndex = useState('selectedBoardIndex', () => 0)
 const isMatching = ref(false)
 const matchmakingElapsed = ref(0)
 const matchmakingEloRange = ref(50)
-let matchmakingTimer: NodeJS.Timeout | null = null
+let matchmakingTimer: any = null
 
 // Rapprochement ELO et ID utilisateur
 const currentUserElo = computed(() => currentUser.value?.elo || 1200)
@@ -111,6 +110,8 @@ const loadData = async () => {
     users.value = usersData['hydra:member'] || usersData['member'] || []
     gameBoards.value = boardsData['hydra:member'] || boardsData['member'] || []
     setUsers(users.value)
+    
+
   } catch (err: any) {
     console.error('Erreur lors du chargement des données:', err)
     errorMessage.value = "Impossible de charger le Hall des Batailles. Vérifiez la connexion d'API."
@@ -178,15 +179,6 @@ const activeGames = computed(() => games.value.filter(g => g.status === 'PLAYING
 const pendingGames = computed(() => games.value.filter(g => g.status === 'PENDING'))
 const finishedGames = computed(() => games.value.filter(g => g.status === 'FINISHED'))
 
-// Tour du joueur
-const isMyTurn = (game: any) => {
-  if (game.status !== 'PLAYING' && game.status !== 'PENDING') return false
-  const movesCount = game.moves ? game.moves.length : 0
-  const isAttackerTurn = movesCount % 2 === 0
-  return isAttackerTurn
-    ? game.attacker === currentUserId.value
-    : game.defender === currentUserId.value
-}
 
 // Matchmaking Simulation
 const startMatchmaking = () => {
@@ -226,23 +218,23 @@ const stopMatchmaking = async (findMatch = false) => {
   
   try {
     const potentialOpponents = users.value.filter(u => u['@id'] !== currentUserId.value)
-    if (potentialOpponents.length === 0) {
-      isMatching.value = false
-      errorMessage.value = "Aucun guerrier disponible dans la taverne. Invitez un ami du clan !"
-      return
-    }
     
-    // Trouver le joueur ayant l'Elo le plus proche
-    const matchedUser = potentialOpponents.reduce((closest, current) => {
-      const diffClosest = Math.abs((closest.elo || 1200) - currentUserElo.value)
-      const diffCurrent = Math.abs((current.elo || 1200) - currentUserElo.value)
-      return diffCurrent < diffClosest ? current : closest
-    })
+    const opponentIri = potentialOpponents.length === 0
+      ? currentUserId.value
+      : potentialOpponents.reduce((closest, current) => {
+          const diffClosest = Math.abs((closest.elo || 1200) - currentUserElo.value)
+          const diffCurrent = Math.abs((current.elo || 1200) - currentUserElo.value)
+          return diffCurrent < diffClosest ? current : closest
+        })['@id']
+
+    const opponentEmail = potentialOpponents.length === 0
+      ? 'Soi-même'
+      : (getUserByIri(opponentIri)?.email?.split('@')[0] || 'Adversaire')
     
     // Détermination aléatoire du camp
     const side = Math.random() > 0.5 ? 'attacker' : 'defender'
-    const attackerIri = side === 'attacker' ? currentUserId.value : matchedUser['@id']
-    const defenderIri = side === 'defender' ? currentUserId.value : matchedUser['@id']
+    const attackerIri = side === 'attacker' ? currentUserId.value : opponentIri
+    const defenderIri = side === 'defender' ? currentUserId.value : opponentIri
     
     const board = selectedBoard.value
     let boardIri = board['@id']
@@ -252,7 +244,9 @@ const stopMatchmaking = async (findMatch = false) => {
     }
     
     if (!boardIri) {
-      throw new Error("Aucune variante de jeu disponible.")
+      errorMessage.value = "Aucune variante de jeu disponible."
+      isMatching.value = false
+      return
     }
     
     const payload = {
@@ -274,7 +268,7 @@ const stopMatchmaking = async (findMatch = false) => {
       body: payload
     })
     
-    successMessage.value = `Un adversaire de force similaire (${getUserByIri(matchedUser['@id']).email.split('@')[0]}) a été trouvé !`
+    successMessage.value = `Un adversaire de force similaire (${opponentEmail}) a été trouvé !`
     isMatching.value = false
     
     navigateTo(`/games/${newGame.id}`)
@@ -323,7 +317,8 @@ const handleCreateGame = async () => {
     }
 
     if (!boardIri) {
-      throw new Error("Aucune variante de jeu disponible.")
+      errorMessage.value = "Aucune variante de jeu disponible."
+      return
     }
 
     const payload = {
@@ -664,16 +659,3 @@ const showBotWarning = () => {
   </div>
 </template>
 
-<style scoped>
-.animate-pulse-slow {
-  animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-}
-@keyframes pulse {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: .85;
-  }
-}
-</style>

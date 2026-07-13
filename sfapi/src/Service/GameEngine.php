@@ -4,6 +4,7 @@ namespace App\Service;
 
 use App\Entity\Game;
 use App\Entity\User;
+use App\Config\GameRules;
 use InvalidArgumentException;
 use LogicException;
 use UnexpectedValueException;
@@ -42,8 +43,12 @@ class GameEngine
         }
 
         // Récupération des infos du terrain
-        $terrain = $game->getGameBoard()->getTerrainLayout();
-        $boardSize = $game->getGameBoard()->getBoardSize();
+        $gameBoard = $game->getGameBoard();
+        $terrain = $gameBoard->getTerrainLayout();
+        $boardSize = $gameBoard->getBoardSize();
+        
+        // Récupération des règles de la variante (ou par défaut)
+        $rules = $gameBoard?->getRules() ?: GameRules::getRulesForVariant($game->getVariant() ?? '');
 
         // Coordonnées [Ligne, Colonne]
         [$fromY, $fromX] = $from;
@@ -116,7 +121,7 @@ class GameEngine
         $board[$fromY][$fromX] = self::EMPTY;
 
         // 6. GESTION DES CAPTURES (Le "Sandwich")
-        $board = $this->handleCaptures($board, $toX, $toY, $piece, $terrain, $boardSize);
+        $board = $this->handleCaptures($board, $toX, $toY, $piece, $terrain, $boardSize, $rules);
 
         // 7. MISE À JOUR DE L'ÉTAT DU JEU
         $game->setBoardState($board);
@@ -132,7 +137,7 @@ class GameEngine
         $game->setMoves($moveHistory);
 
         // 8. VÉRIFICATION DE VICTOIRE
-        $victory = $this->checkVictory($board, $terrain, $boardSize);
+        $victory = $this->checkVictory($board, $terrain, $boardSize, $rules);
 
         if ($victory) {
             $game->setStatus('FINISHED');
@@ -176,8 +181,14 @@ class GameEngine
     /**
      * Gère la capture par encerclement (Custodial Capture)
      */
-    private function handleCaptures(array $board, int $x, int $y, int $aggressorPiece, array $terrain, int $size): array
+    private function handleCaptures(array $board, int $x, int $y, int $aggressorPiece, array $terrain, int $size, array $rules): array
     {
+        // Si le Roi est l'agresseur et qu'il est désarmé, aucune capture possible
+        $kingWeapon = $rules[GameRules::KEY_KING_WEAPON] ?? GameRules::KING_ARMED;
+        if ($aggressorPiece === self::KING && $kingWeapon !== GameRules::KING_ARMED) {
+            return $board;
+        }
+
         // Directions : Haut, Bas, Gauche, Droite
         $directions = [[0, -1], [0, 1], [-1, 0], [1, 0]];
 
@@ -206,25 +217,40 @@ class GameEngine
                 ? ($victimPiece === self::DEFENDER || $victimPiece === self::KING)
                 : ($victimPiece === self::ATTACKER);
 
-            if (!$isVictimEnemy) {continue;}
+            if (!$isVictimEnemy) {
+                continue;
+            }
 
-            // RÈGLE SPÉCIALE ROI : Généralement le Roi ne se fait pas capturer par simple sandwich
-            // sauf s'il est "faible" ou entouré de 4 côtés.
-            // Pour simplifier ici : on interdit la capture du roi par sandwich simple.
-            if ($victimPiece === self::KING) {continue;}
+            // RÈGLE SPÉCIALE ROI : Le Roi n'est jamais capturé par simple sandwich normal ici.
+            // Sa capture est gérée de manière centralisée dans checkVictory.
+            if ($victimPiece === self::KING) {
+                continue;
+            }
 
-            // Vérifier l'Enclume (Le marteau est la pièce qu'on vient de bouger)
+            // Vérifier l'Enclume
             $anvilPiece = $board[$anvilY][$anvilX];
             $anvilTerrain = $terrain[$anvilY][$anvilX];
 
             // Mon allié est-il sur l'enclume ?
-            $isAnvilAlly = $isAttacker
-                ? ($anvilPiece === self::ATTACKER)
-                : ($anvilPiece === self::DEFENDER || $anvilPiece === self::KING);
+            if ($isAttacker) {
+                $isAnvilAlly = ($anvilPiece === self::ATTACKER);
+            } else {
+                if ($anvilPiece === self::DEFENDER) {
+                    $isAnvilAlly = true;
+                } elseif ($anvilPiece === self::KING) {
+                    $isAnvilAlly = ($kingWeapon === GameRules::KING_ARMED);
+                } else {
+                    $isAnvilAlly = false;
+                }
+            }
 
-            // Les coins et le trône (s'il est vide) comptent souvent comme "hostiles" pour capturer
-            $isAnvilHostileStructure = ($anvilPiece === self::EMPTY) &&
-                ($anvilTerrain === self::CELL_CORNER || $anvilTerrain === self::CELL_THRONE);
+            // Les coins et le trône (selon la règle d'hostilité) peuvent servir d'enclume s'ils sont vides
+            $isCornerHostile = ($anvilTerrain === self::CELL_CORNER) && ($anvilPiece === self::EMPTY);
+            
+            $throneHostility = $rules[GameRules::KEY_THRONE_HOSTILITY] ?? GameRules::THRONE_HOSTILE_EMPTY;
+            $isThroneHostile = ($anvilTerrain === self::CELL_THRONE) && ($anvilPiece === self::EMPTY) && ($throneHostility !== GameRules::THRONE_NEVER_HOSTILE);
+
+            $isAnvilHostileStructure = $isCornerHostile || $isThroneHostile;
 
             if ($isAnvilAlly || $isAnvilHostileStructure) {
                 // BOUM ! Capture effectuée
@@ -238,7 +264,7 @@ class GameEngine
     /**
      * Vérifie si quelqu'un a gagné
      */
-    private function checkVictory(array $board, array $terrain, int $size): ?string
+    private function checkVictory(array $board, array $terrain, int $size, array $rules): ?string
     {
         $kingPos = null;
 
@@ -259,42 +285,124 @@ class GameEngine
 
         [$kY, $kX] = $kingPos;
 
-        // 2. VICTOIRE DÉFENSEUR : Le Roi est sur un Coin
-        if ($terrain[$kY][$kX] === self::CELL_CORNER) {
-            return 'DEFENDER';
+        // 2. VICTOIRE DÉFENSEUR : Le Roi a atteint sa destination
+        $winConditionRule = $rules[GameRules::KEY_WIN_CONDITION] ?? GameRules::WIN_CORNER;
+        if ($winConditionRule === GameRules::WIN_CORNER) {
+            if ($terrain[$kY][$kX] === self::CELL_CORNER) {
+                return 'DEFENDER';
+            }
+        } elseif ($winConditionRule === GameRules::WIN_EDGE) {
+            if ($kY === 0 || $kY === $size - 1 || $kX === 0 || $kX === $size - 1) {
+                return 'DEFENDER';
+            }
         }
 
-        // 3. VICTOIRE ATTAQUANT : Le Roi est encerclé sur 4 côtés
-        // On vérifie les 4 voisins du Roi
+        // 3. VICTOIRE ATTAQUANT : Le Roi est capturé
+        $kingCaptureRule = $rules[GameRules::KEY_KING_CAPTURE] ?? GameRules::CAPTURE_4_SIDES;
+
+        // Est-il sur le trône ?
+        $isOnThrone = ($terrain[$kY][$kX] === self::CELL_THRONE);
+
+        // Est-il adjacent au trône ?
+        $isAdjacentToThrone = false;
         $directions = [[0, 1], [0, -1], [1, 0], [-1, 0]];
-        $surrounded = true;
-
         foreach ($directions as [$dx, $dy]) {
-            $nx = $kX + $dx;
             $ny = $kY + $dy;
-
-            // Si le Roi est au bord du plateau, il n'est pas "encerclé" (sauf variante spéciale)
-            if ($nx < 0 || $nx >= $size || $ny < 0 || $ny >= $size) {
-                $surrounded = false;
-                break;
-            }
-
-            $neighborPiece = $board[$ny][$nx];
-
-            // Le Roi est bloqué si le voisin est un Attaquant
-            // OU si c'est le Trône (et qu'on considère le trône comme hostile)
-            $isBlocker = ($neighborPiece === self::ATTACKER);
-
-            if (!$isBlocker) {
-                $surrounded = false;
-                break;
+            $nx = $kX + $dx;
+            if ($ny >= 0 && $ny < $size && $nx >= 0 && $nx < $size) {
+                if ($terrain[$ny][$nx] === self::CELL_THRONE) {
+                    $isAdjacentToThrone = true;
+                    break;
+                }
             }
         }
 
-        if ($surrounded) {
-            return 'ATTACKER';
+        // Si le Roi est sur le trône ou adjacent au trône, il doit être entouré sur 4 côtés
+        // (le trône vide compte comme un bloqueur s'il est adjacent).
+        if ($isOnThrone || $isAdjacentToThrone) {
+            $blockedSides = 0;
+            foreach ($directions as [$dx, $dy]) {
+                $ny = $kY + $dy;
+                $nx = $kX + $dx;
+                if ($ny >= 0 && $ny < $size && $nx >= 0 && $nx < $size) {
+                    $piece = $board[$ny][$nx];
+                    if ($piece === self::ATTACKER) {
+                        $blockedSides++;
+                    } elseif ($terrain[$ny][$nx] === self::CELL_THRONE && $piece === self::EMPTY) {
+                        $blockedSides++;
+                    }
+                }
+            }
+            if ($blockedSides === 4) {
+                return 'ATTACKER';
+            }
+        } else {
+            // S'il est ailleurs sur le plateau
+            if ($kingCaptureRule === GameRules::CAPTURE_2_SIDES) {
+                // Capturable par sandwich simple (2 côtés opposés)
+                $verticalSandwich = $this->isAnvilForKing($kY - 1, $kX, $board, $terrain, $size, $rules)
+                    && $this->isAnvilForKing($kY + 1, $kX, $board, $terrain, $size, $rules);
+                $horizontalSandwich = $this->isAnvilForKing($kY, $kX - 1, $board, $terrain, $size, $rules)
+                    && $this->isAnvilForKing($kY, $kX + 1, $board, $terrain, $size, $rules);
+                
+                if ($verticalSandwich || $horizontalSandwich) {
+                    return 'ATTACKER';
+                }
+            } else {
+                // CAPTURE_4_SIDES : Doit être entouré sur ses 4 côtés par des attaquants, des coins ou des bords
+                $blockedSides = 0;
+                foreach ($directions as [$dx, $dy]) {
+                    $ny = $kY + $dy;
+                    $nx = $kX + $dx;
+
+                    if ($ny < 0 || $ny >= $size || $nx < 0 || $nx >= $size) {
+                        $blockedSides++; // Le bord bloque
+                        continue;
+                    }
+
+                    $piece = $board[$ny][$nx];
+                    if ($piece === self::ATTACKER) {
+                        $blockedSides++;
+                    } elseif ($terrain[$ny][$nx] === self::CELL_CORNER && $piece === self::EMPTY) {
+                        $blockedSides++;
+                    } elseif ($terrain[$ny][$nx] === self::CELL_THRONE && $piece === self::EMPTY) {
+                        $blockedSides++;
+                    }
+                }
+                if ($blockedSides === 4) {
+                    return 'ATTACKER';
+                }
+            }
         }
 
         return null; // La partie continue
+    }
+
+    /**
+     * Détermine si une case sert d'enclume pour capturer le Roi par sandwich
+     */
+    private function isAnvilForKing(int $y, int $x, array $board, array $terrain, int $size, array $rules): bool
+    {
+        if ($y < 0 || $y >= $size || $x < 0 || $x >= $size) {
+            return false; // Le bord n'est pas une enclume pour un sandwich de Roi
+        }
+
+        $piece = $board[$y][$x];
+        if ($piece === self::ATTACKER) {
+            return true;
+        }
+
+        // Coins vides : toujours hostile
+        if ($terrain[$y][$x] === self::CELL_CORNER && $piece === self::EMPTY) {
+            return true;
+        }
+
+        // Trône vide : hostile selon throne_hostility
+        if ($terrain[$y][$x] === self::CELL_THRONE && $piece === self::EMPTY) {
+            $throneHostility = $rules[GameRules::KEY_THRONE_HOSTILITY] ?? GameRules::THRONE_HOSTILE_EMPTY;
+            return $throneHostility === GameRules::THRONE_ALWAYS_HOSTILE || $throneHostility === GameRules::THRONE_HOSTILE_EMPTY;
+        }
+
+        return false;
     }
 }

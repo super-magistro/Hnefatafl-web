@@ -89,6 +89,9 @@ class Game
     #[ORM\Column(type: Types::JSON)]
     private array $moves = [];
 
+    #[ORM\Column(type: Types::JSON, nullable: true)]
+    private ?array $chat = [];
+
     #[ORM\Column(nullable: true)]
     private ?int $attackerTimeLeft = null;
 
@@ -223,6 +226,17 @@ class Game
     {
         $this->gameBoard = $gameBoard;
 
+        return $this;
+    }
+
+    public function getChat(): array
+    {
+        return $this->chat ?? [];
+    }
+
+    public function setChat(?array $chat): static
+    {
+        $this->chat = $chat;
         return $this;
     }
 }

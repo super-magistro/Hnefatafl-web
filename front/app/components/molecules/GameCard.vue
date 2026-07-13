@@ -36,7 +36,8 @@
 
       <!-- Turn indicator -->
       <div class="flex justify-between items-center">
-        <span :class="turnClass" class="text-xs font-semibold uppercase tracking-wider font-['Cinzel',serif]">
+        <span :class="turnClass" class="text-xs font-semibold uppercase tracking-wider font-['Cinzel',serif] flex items-center gap-1.5">
+          <UIcon :name="isMyTurn ? 'i-lucide-swords' : 'i-lucide-shield'" class="w-3.5 h-3.5" />
           {{ turnLabel }}
         </span>
         <span class="text-xs text-pine-cone-500 font-medium">
@@ -48,16 +49,29 @@
     <template #footer>
       <div class="flex gap-2">
         <UButton :to="`/games/${game.id}`" variant="cta" class="flex-1 justify-center" icon="i-lucide-arrow-right" size="md" />
-        <UButton variant="outline" color="neutral" icon="i-lucide-share-2" title="Copier le lien d'invitation" size="md" @click="copyLink" class="shrink-0" />
+        <UButton
+          :variant="isCopied ? 'invitationCopied' : 'invitation'"
+          :icon="isCopied ? 'i-lucide-check' : 'i-lucide-share-2'"
+          :title="isCopied ? 'Lien copié !' : 'Copier le lien d\'invitation'"
+          size="md"
+          @click="copyLink"
+          class="shrink-0"
+        />
       </div>
     </template>
   </UCard>
 </template>
 
 <script setup lang="ts">
-import { computed, defineProps } from 'vue'
 import type { Game, User } from '../../game-types'
+import { copyToClipboard } from '@/utils/clipboard'
 const props = defineProps<{ game: Game; currentUserId: string | null }>()
+
+const emit = defineEmits<{
+  (e: 'copy-link', gameId: number): void
+}>()
+
+const isCopied = ref(false)
 
 // Helper to fetch user data from the global userMap (same logic as in page)
 const { getUserByIri } = useUserMap()
@@ -77,27 +91,20 @@ const isMyTurn = computed(() => {
   return isAttackerTurn ? props.game.attacker === props.currentUserId : props.game.defender === props.currentUserId
 })
 
-const turnLabel = computed(() => (isMyTurn.value ? "⚔️ À VOUS DE JOUER" : "🛡️ Attente de l'adversaire"))
+const turnLabel = computed(() => (isMyTurn.value ? "À VOUS DE JOUER" : "Attente de l'adversaire"))
 const turnClass = computed(() => (isMyTurn.value ? 'text-primary-700 animate-pulse' : 'text-pine-cone-500'))
 
 const cardClass = computed(() => (isMyTurn.value ? 'border-l-primary-600' : 'border-l-neutral-300'))
 
-function copyLink() {
+async function copyLink() {
   const link = `${window.location.origin}/games/${props.game.id}`
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(link).catch(fallback)
-  } else {
-    fallback()
-  }
-  function fallback() {
-    const textarea = document.createElement('textarea')
-    textarea.value = link
-    textarea.style.position = 'fixed'
-    textarea.style.left = '-9999px'
-    document.body.appendChild(textarea)
-    textarea.select()
-    document.execCommand('copy')
-    document.body.removeChild(textarea)
+  const success = await copyToClipboard(link)
+  if (success) {
+    isCopied.value = true
+    setTimeout(() => {
+      isCopied.value = false
+    }, 3000)
+    emit('copy-link', props.game.id)
   }
 }
 </script>

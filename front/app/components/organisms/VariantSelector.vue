@@ -31,11 +31,13 @@
 
     <div class="space-y-6">
       <div class="flex justify-center">
-        <MoleculesBoardPreview
+        <MoleculesGameBoard
           class="max-w-[340px]"
           :board-size="board.boardSize"
-          :initial-layout="board.initialLayout"
+          :board-state="board.initialLayout"
           :terrain-layout="board.terrainLayout"
+          :interactive="false"
+          :max-size="340"
         />
       </div>
 

@@ -20,6 +20,10 @@ export default defineAppConfig({
                     subtle: {
                         root: 'bg-white shadow-none ring-1 ring-neutral-200',
                         body: 'p-6 sm:p-8'
+                    },
+                    compact: {
+                        root: 'bg-white shadow-sm ring-1 ring-neutral-200 rounded-xl',
+                        body: 'p-3 sm:p-3'
                     }
                 }
             }
@@ -47,7 +51,11 @@ export default defineAppConfig({
                     tabActive: 'font-bold text-white bg-primary-700 shadow hover:bg-primary-800 transition-all duration-200',
                     tabInactive: 'font-bold text-oil-950 bg-transparent hover:bg-neutral-200 border-none transition-all duration-200',
                     Link: 'font-medium text-pine-cone-600 hover:text-primary-700 bg-transparent transition-colors p-0',
-                    sidebarButton: 'w-full justify-start py-2 px-3 font-medium text-neutral-100 hover:text-white hover:bg-vert-900/50 transition-colors rounded-md bg-transparent'
+                    sidebarButton: 'w-full justify-start py-2 px-3 font-medium text-neutral-100 hover:text-white hover:bg-vert-900/50 transition-colors rounded-md bg-transparent',
+                    invitation: 'font-semibold text-xs border border-warning-500/30 hover:bg-warning-50 text-warning-600 bg-transparent transition-all duration-300 py-2 justify-center',
+                    invitationCopied: 'font-semibold text-xs border border-primary-500 hover:bg-primary-50 text-primary-700 bg-primary-50 transition-all duration-300 py-2 justify-center',
+                    resign: 'font-semibold text-xs border border-error-500/30 hover:bg-error-50 text-error-600 bg-transparent py-2 justify-center',
+                    secondary: 'font-semibold text-xs border border-neutral-300 bg-white hover:bg-neutral-50 text-oil-950 py-2 justify-center'
                 }
             }
         },

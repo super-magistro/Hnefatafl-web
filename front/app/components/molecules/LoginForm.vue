@@ -7,22 +7,14 @@
       <p class="mt-2 text-sm text-pine-cone-600">La Stratégie des Rois</p>
     </div>
 
-    <div class="flex p-1 mb-8 space-x-1 rounded-lg bg-neutral-100">
-      <UButton
-          class="flex-1 justify-center py-2.5 text-sm"
-          :variant="isLoginMode ? 'tabActive' : 'tabInactive'"
-          @click="isLoginMode = true"
-      >
-        Connexion
-      </UButton>
-      <UButton
-          class="flex-1 justify-center py-2.5 text-sm"
-          :variant="!isLoginMode ? 'tabActive' : 'tabInactive'"
-          @click="isLoginMode = false"
-      >
-        Inscription
-      </UButton>
-    </div>
+    <UTabs
+      v-model="activeTab"
+      :items="[
+        { label: 'Connexion' },
+        { label: 'Inscription' }
+      ]"
+      class="mb-8"
+    />
 
     <form @submit.prevent="handleSubmit" class="space-y-5">
 
@@ -72,10 +64,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import validator from 'validator';
 
-const isLoginMode = ref(true)
+const activeTab = ref(0)
+const isLoginMode = computed({
+  get: () => activeTab.value === 0,
+  set: (val) => { activeTab.value = val ? 0 : 1 }
+})
 const email = ref('')
 const password = ref('')
 const confirmPassword = ref('')
@@ -92,8 +88,12 @@ const handleSubmit = async () => {
     errors.value.email = "Format d'email invalide"
     return
   }
-  if (!validator.isStrongPassword(password.value)) {
+  if (!isLoginMode.value && !validator.isStrongPassword(password.value)) {
     errors.value.password = "Le mot de passe doit contenir au moins 8 caractères, une majuscule, un chiffre et un symbole."
+    return
+  }
+  if (isLoginMode.value && !password.value) {
+    errors.value.password = "Le mot de passe est requis"
     return
   }
   if (!isLoginMode.value && password.value !== confirmPassword.value) {
@@ -114,7 +114,7 @@ const handleSubmit = async () => {
     }
 
     if (success) {
-      router.push('/main')
+      router.push('/games')
     }
   } catch (error) {
     errors.value.general = "Une erreur serveur est survenue."
