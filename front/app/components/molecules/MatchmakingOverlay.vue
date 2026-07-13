@@ -42,3 +42,17 @@ defineEmits<{
   (e: 'cancel'): void
 }>()
 </script>
+
+<style scoped>
+.animate-pulse-slow {
+  animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: .85;
+  }
+}
+</style>

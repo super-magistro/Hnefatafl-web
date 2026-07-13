@@ -5,7 +5,7 @@ const { token } = useAuth()
 
 onMounted(() => {
   if (token.value) {
-    navigateTo('/main', { replace: true })
+    navigateTo('/games', { replace: true })
   }
   else {
     navigateTo('/login', { replace: true })

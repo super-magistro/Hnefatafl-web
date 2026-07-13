@@ -219,11 +219,13 @@ const nextVariant = () => {
             <div class="grid md:grid-cols-12 gap-8 items-center">
               <!-- Colonne gauche : Composant de visualisation existant BoardPreview (5/12) -->
               <div class="md:col-span-5 flex justify-center">
-                <MoleculesBoardPreview
+                <MoleculesGameBoard
                     class="max-w-[280px]"
                     :board-size="selectedBoard.boardSize"
-                    :initial-layout="selectedBoard.initialLayout"
+                    :board-state="selectedBoard.initialLayout"
                     :terrain-layout="selectedBoard.terrainLayout"
+                    :interactive="false"
+                    :max-size="280"
                 />
               </div>
 

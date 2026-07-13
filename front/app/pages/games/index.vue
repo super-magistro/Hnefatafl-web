@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
 import TabBar from '@/components/atoms/TabBar.vue'
 import GameList from '@/components/organisms/GameList.vue'
 import { useUserMap } from '@/composables/useUserMap'
@@ -32,6 +31,7 @@ const isChallengeModalOpen = ref(false)
 // Formulaire de défi (sans opponentSelect, uniquement side et time)
 const selectedSide = ref<'attacker' | 'defender' | 'random'>('random')
 const selectedTimeControl = ref('10+5')
+const opponentType = ref<'friend' | 'bot' | 'easy-bot'>('friend')
 
 // Index du variant sélectionné
 const selectedBoardIndex = useState('selectedBoardIndex', () => 0)
@@ -40,7 +40,7 @@ const selectedBoardIndex = useState('selectedBoardIndex', () => 0)
 const isMatching = ref(false)
 const matchmakingElapsed = ref(0)
 const matchmakingEloRange = ref(50)
-let matchmakingTimer: NodeJS.Timeout | null = null
+let matchmakingTimer: any = null
 
 // Rapprochement ELO et ID utilisateur
 const currentUserElo = computed(() => currentUser.value?.elo || 1200)
@@ -111,6 +111,8 @@ const loadData = async () => {
     users.value = usersData['hydra:member'] || usersData['member'] || []
     gameBoards.value = boardsData['hydra:member'] || boardsData['member'] || []
     setUsers(users.value)
+    
+
   } catch (err: any) {
     console.error('Erreur lors du chargement des données:', err)
     errorMessage.value = "Impossible de charger le Hall des Batailles. Vérifiez la connexion d'API."
@@ -178,15 +180,6 @@ const activeGames = computed(() => games.value.filter(g => g.status === 'PLAYING
 const pendingGames = computed(() => games.value.filter(g => g.status === 'PENDING'))
 const finishedGames = computed(() => games.value.filter(g => g.status === 'FINISHED'))
 
-// Tour du joueur
-const isMyTurn = (game: any) => {
-  if (game.status !== 'PLAYING' && game.status !== 'PENDING') return false
-  const movesCount = game.moves ? game.moves.length : 0
-  const isAttackerTurn = movesCount % 2 === 0
-  return isAttackerTurn
-    ? game.attacker === currentUserId.value
-    : game.defender === currentUserId.value
-}
 
 // Matchmaking Simulation
 const startMatchmaking = () => {
@@ -226,23 +219,23 @@ const stopMatchmaking = async (findMatch = false) => {
   
   try {
     const potentialOpponents = users.value.filter(u => u['@id'] !== currentUserId.value)
-    if (potentialOpponents.length === 0) {
-      isMatching.value = false
-      errorMessage.value = "Aucun guerrier disponible dans la taverne. Invitez un ami du clan !"
-      return
-    }
     
-    // Trouver le joueur ayant l'Elo le plus proche
-    const matchedUser = potentialOpponents.reduce((closest, current) => {
-      const diffClosest = Math.abs((closest.elo || 1200) - currentUserElo.value)
-      const diffCurrent = Math.abs((current.elo || 1200) - currentUserElo.value)
-      return diffCurrent < diffClosest ? current : closest
-    })
+    const opponentIri = potentialOpponents.length === 0
+      ? currentUserId.value
+      : potentialOpponents.reduce((closest, current) => {
+          const diffClosest = Math.abs((closest.elo || 1200) - currentUserElo.value)
+          const diffCurrent = Math.abs((current.elo || 1200) - currentUserElo.value)
+          return diffCurrent < diffClosest ? current : closest
+        })['@id']
+
+    const opponentEmail = potentialOpponents.length === 0
+      ? 'Soi-même'
+      : (getUserByIri(opponentIri)?.email?.split('@')[0] || 'Adversaire')
     
     // Détermination aléatoire du camp
     const side = Math.random() > 0.5 ? 'attacker' : 'defender'
-    const attackerIri = side === 'attacker' ? currentUserId.value : matchedUser['@id']
-    const defenderIri = side === 'defender' ? currentUserId.value : matchedUser['@id']
+    const attackerIri = side === 'attacker' ? currentUserId.value : opponentIri
+    const defenderIri = side === 'defender' ? currentUserId.value : opponentIri
     
     const board = selectedBoard.value
     let boardIri = board['@id']
@@ -252,7 +245,9 @@ const stopMatchmaking = async (findMatch = false) => {
     }
     
     if (!boardIri) {
-      throw new Error("Aucune variante de jeu disponible.")
+      errorMessage.value = "Aucune variante de jeu disponible."
+      isMatching.value = false
+      return
     }
     
     const payload = {
@@ -274,7 +269,7 @@ const stopMatchmaking = async (findMatch = false) => {
       body: payload
     })
     
-    successMessage.value = `Un adversaire de force similaire (${getUserByIri(matchedUser['@id']).email.split('@')[0]}) a été trouvé !`
+    successMessage.value = `Un adversaire de force similaire (${opponentEmail}) a été trouvé !`
     isMatching.value = false
     
     navigateTo(`/games/${newGame.id}`)
@@ -287,7 +282,7 @@ const stopMatchmaking = async (findMatch = false) => {
   }
 }
 
-// Défi Ami (Création d'une partie avec l'opposant vide)
+// Défi Ami / IA (Création d'une partie avec l'opposant vide ou Bot)
 const handleCreateGame = async () => {
   isSubmitting.value = true
   errorMessage.value = null
@@ -309,10 +304,30 @@ const handleCreateGame = async () => {
       side = Math.random() > 0.5 ? 'attacker' : 'defender'
     }
 
+    const isBot = (opponentType.value === 'bot' || opponentType.value === 'easy-bot')
+    let botIri: string | null = null
+    const botEmail = opponentType.value === 'easy-bot' ? 'easy-bot@hnefatafl.com' : 'bot@hnefatafl.com'
+
+    if (isBot) {
+      const botUser = users.value.find((u: any) => u.email === botEmail)
+      if (!botUser) {
+        errorMessage.value = `L'adversaire Bot (${botEmail}) n'est pas disponible. Essayez de recharger les runes du Hall.`
+        isSubmitting.value = false
+        return
+      }
+      botIri = botUser['@id']
+    }
+
     if (side === 'attacker') {
       attackerIri = currentUserId.value
+      if (isBot) {
+        defenderIri = botIri
+      }
     } else {
       defenderIri = currentUserId.value
+      if (isBot) {
+        attackerIri = botIri
+      }
     }
 
     const board = selectedBoard.value
@@ -323,13 +338,14 @@ const handleCreateGame = async () => {
     }
 
     if (!boardIri) {
-      throw new Error("Aucune variante de jeu disponible.")
+      errorMessage.value = "Aucune variante de jeu disponible."
+      return
     }
 
     const payload = {
       variant: board.name.split(' ')[0],
       timeControl: selectedTimeControl.value,
-      status: 'PENDING',
+      status: isBot ? 'PLAYING' : 'PENDING',
       attacker: attackerIri,
       defender: defenderIri,
       gameBoard: boardIri,
@@ -346,26 +362,31 @@ const handleCreateGame = async () => {
 
     isChallengeModalOpen.value = false
     
-    // Copier immédiatement le lien et avertir l'utilisateur
-    copyGameLink(newGame.id)
-
-    await loadData()
+    if (isBot) {
+      navigateTo(`/games/${newGame.id}`)
+    } else {
+      // Copier immédiatement le lien et avertir l'utilisateur
+      copyGameLink(newGame.id)
+      await loadData()
+    }
   } catch (err: any) {
-    console.error('Erreur de création de défi lien:', err, err.data)
+    console.error('Erreur de création de défi:', err, err.data)
     errorMessage.value = err.data?.detail || err.data?.description || "Impossible de créer la table de défi."
   } finally {
     isSubmitting.value = false
   }
 }
 
-// Alerte IA
-const showBotWarning = () => {
-  botWarning.value = "Les corbeaux d'Odin survolent le champ de bataille, mais les forges d'Asgard travaillent encore sur l'intelligence artificielle du Père de Tout. Cette fonctionnalité sera disponible dans une prochaine mise à jour !"
-  errorMessage.value = null
-  successMessage.value = null
-  setTimeout(() => {
-    if (botWarning.value) botWarning.value = null
-  }, 6000)
+// Lancement contre le Bot Odin (Difficile)
+const playAgainstBot = () => {
+  opponentType.value = 'bot'
+  isChallengeModalOpen.value = true
+}
+
+// Lancement contre le Bot Novice (Facile)
+const playAgainstEasyBot = () => {
+  opponentType.value = 'easy-bot'
+  isChallengeModalOpen.value = true
 }
 </script>
 
@@ -444,8 +465,9 @@ const showBotWarning = () => {
           v-else
           :user-elo="currentUserElo"
           @matchmaking="startMatchmaking"
-          @challenge="isChallengeModalOpen = true"
-          @bot-warning="showBotWarning"
+          @challenge="isChallengeModalOpen = true; opponentType = 'friend'"
+          @play-bot="playAgainstBot"
+          @play-easy-bot="playAgainstEasyBot"
         />
       </div>
 
@@ -600,7 +622,28 @@ const showBotWarning = () => {
               <span class="text-xs font-bold text-pine-cone-500 uppercase tracking-wider block">Variante Sélectionnée</span>
               <span class="text-base font-extrabold text-neutral-950 block mt-0.5">{{ selectedBoard.name }}</span>
             </div>
-
+            <!-- Choix de l'adversaire -->
+            <div>
+              <label class="block text-xs font-bold text-neutral-950 uppercase tracking-wider mb-2">Adversaire</label>
+              <div class="grid grid-cols-2 gap-2">
+                <UButton
+                    type="button"
+                    class="justify-center font-bold text-xs"
+                    :variant="opponentType === 'friend' ? 'tabActive' : 'tabInactive'"
+                    @click="opponentType = 'friend'"
+                >
+                  👥 Inviter un Ami
+                </UButton>
+                <UButton
+                    type="button"
+                    class="justify-center font-bold text-xs"
+                    :variant="opponentType === 'bot' ? 'tabActive' : 'tabInactive'"
+                    @click="opponentType = 'bot'"
+                >
+                  🤖 Affronter le Bot (Odin)
+                </UButton>
+              </div>
+            </div>
             <!-- Choix du camp -->
             <div>
               <label class="block text-xs font-bold text-neutral-950 uppercase tracking-wider mb-2">Votre camp</label>
@@ -655,7 +698,7 @@ const showBotWarning = () => {
                 :loading="isSubmitting"
                 class="mt-6 font-bold"
             >
-              Générer le Lien d'Invitation
+              {{ opponentType === 'easy-bot' ? "Affronter le Novice d'Yggdrasil" : opponentType === 'bot' ? "Lancer la Bataille contre Odin" : "Générer le Lien d'Invitation" }}
             </UButton>
           </form>
         </UCard>
@@ -664,16 +707,3 @@ const showBotWarning = () => {
   </div>
 </template>
 
-<style scoped>
-.animate-pulse-slow {
-  animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-}
-@keyframes pulse {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: .85;
-  }
-}
-</style>

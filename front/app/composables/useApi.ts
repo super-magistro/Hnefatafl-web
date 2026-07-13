@@ -15,7 +15,8 @@ export const useApi = () => {
             headers['Authorization'] = `Bearer ${token.value}`
         }
 
-        const url = path.startsWith('http') ? path : `${config.public.apiBase}${path}`
+        const cleanPath = path.startsWith('/api/') ? path.substring(4) : path
+        const url = path.startsWith('http') ? path : `${config.public.apiBase}${cleanPath}`
 
         try {
             return await $fetch<T>(url, {

@@ -1,14 +1,41 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { copyToClipboard } from '@/utils/clipboard'
 
 definePageMeta({
   layout: 'authenticated'
 })
 
 const route = useRoute()
-const router = useRouter()
 const { apiFetch } = useApi()
 const { user: currentUser, fetchMe } = useMe()
+
+// Helper pour extraire l'ID utilisateur
+const getUserId = (userOrIri: any): number | null => {
+  if (!userOrIri) return null
+  if (typeof userOrIri === 'number') return userOrIri
+  if (typeof userOrIri === 'string') {
+    if (userOrIri === '/me' || userOrIri.endsWith('/me')) {
+      if (currentUser.value && currentUser.value.id) {
+        return Number(currentUser.value.id)
+      }
+    }
+    const match = userOrIri.match(/\/users\/(\d+)/)
+    return match ? Number(match[1]) : null
+  }
+  if (userOrIri.id) return Number(userOrIri.id)
+  if (userOrIri['@id']) {
+    const match = userOrIri['@id'].match(/\/users\/(\d+)/)
+    return match ? Number(match[1]) : null
+  }
+  return null
+}
+
+// Helper pour extraire l'IRI d'une entité ou d'une chaîne
+const getIri = (userOrIri: any): string | null => {
+  if (!userOrIri) return null
+  if (typeof userOrIri === 'string') return userOrIri
+  return userOrIri['@id'] || (userOrIri.id ? `/api/users/${userOrIri.id}` : null)
+}
 
 // Données réactives
 const game = ref<any>(null)
@@ -23,42 +50,40 @@ const selectedCell = ref<[number, number] | null>(null)
 const validMoves = ref<[number, number][]>([])
 
 // Polling pour récupérer les nouveaux coups de l'adversaire
-let pollingInterval: NodeJS.Timeout | null = null
+let pollingInterval: any = null
 
-const currentUserId = computed<string | null>(() => {
-  if (!currentUser.value) return null
-  return currentUser.value['@id'] || (currentUser.value.id ? `/api/users/${currentUser.value.id}` : null)
+const currentUserIdVal = computed<number | null>(() => {
+  return currentUser.value?.id ? Number(currentUser.value.id) : null
 })
 
 // Rejoindre la partie en tant que second joueur
 const joinGame = async (role: 'attacker' | 'defender') => {
-  if (!currentUserId.value) {
-    errorMessage.value = "Impossible de rejoindre la partie : utilisateur non connecté ou profil non récupéré."
+  if (!currentUserIdVal.value) {
+    errorMessage.value = "Impossible de rejoindre la partie : utilisateur non connecté."
     return
   }
   isActionLoading.value = true
   try {
     const payload = {
-      [role]: currentUserId.value,
+      [role]: `/api/users/${currentUserIdVal.value}`,
       status: 'PLAYING'
     }
-    const updated = await apiFetch(`/games/${route.params.id}`, {
+    game.value = await apiFetch(`/games/${route.params.id}`, {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/merge-patch+json'
       },
       body: payload
     })
-    game.value = updated
     
-    if (game.value.gameBoard) {
-      boardDetails.value = await apiFetch(game.value.gameBoard)
+    const boardIri = getIri(game.value.gameBoard)
+    if (boardIri) {
+      boardDetails.value = await apiFetch(boardIri)
     }
-    const opponentIri = role === 'attacker' ? game.value.defender : game.value.attacker
-    if (opponentIri) {
-      opponentUser.value = await apiFetch(opponentIri)
+    const opponentId = role === 'attacker' ? getUserId(game.value.defender) : getUserId(game.value.attacker)
+    if (opponentId) {
+      opponentUser.value = await apiFetch(`/users/${opponentId}`)
     }
-    alert("Vous venez de rejoindre la bataille en tant que " + (role === 'attacker' ? "Attaquant" : "Défenseur") + " !")
   } catch (err: any) {
     console.error('Erreur de ralliement de la partie:', err)
     errorMessage.value = "Impossible de rejoindre la partie."
@@ -72,17 +97,19 @@ const loadGame = async (showLoader = false) => {
   if (showLoader) isLoading.value = true
   errorMessage.value = null
   try {
-    const gameData = await apiFetch(`/games/${route.params.id}`)
-    game.value = gameData
+    game.value = await apiFetch(`/games/${route.params.id}`)
+
+    const attackerId = getUserId(game.value.attacker)
+    const defenderId = getUserId(game.value.defender)
 
     // Rejoindre automatiquement si la partie est PENDING et qu'une place est libre
     if (game.value.status === 'PENDING') {
-      const isCreator = game.value.attacker === currentUserId.value || game.value.defender === currentUserId.value
+      const isCreator = attackerId === currentUserIdVal.value || defenderId === currentUserIdVal.value
       if (!isCreator) {
-        if (!game.value.attacker) {
+        if (!attackerId) {
           await joinGame('attacker')
           return
-        } else if (!game.value.defender) {
+        } else if (!defenderId) {
           await joinGame('defender')
           return
         }
@@ -90,21 +117,22 @@ const loadGame = async (showLoader = false) => {
     }
 
     // Charger les détails du plateau (variante) si pas encore fait
-    if (!boardDetails.value && game.value.gameBoard) {
-      boardDetails.value = await apiFetch(game.value.gameBoard)
+    const boardIri = getIri(game.value.gameBoard)
+    if (!boardDetails.value && boardIri) {
+      boardDetails.value = await apiFetch(boardIri)
     }
 
     // Déterminer l'adversaire
-    const opponentIri = game.value.attacker === currentUserId.value 
-      ? game.value.defender 
-      : game.value.attacker
+    const opponentId = attackerId === currentUserIdVal.value 
+      ? defenderId 
+      : attackerId
     
-    if (opponentIri && (!opponentUser.value || opponentUser.value['@id'] !== opponentIri)) {
-      opponentUser.value = await apiFetch(opponentIri)
+    if (opponentId && (!opponentUser.value || opponentUser.value.id !== opponentId)) {
+      opponentUser.value = await apiFetch(`/users/${opponentId}`)
     }
   } catch (err: any) {
     console.error('Erreur lors du chargement de la partie:', err)
-    errorMessage.value = "Impossible de charger la partie. Le drakkar a peut-être sombré."
+    errorMessage.value = "Impossible de charger la partie."
   } finally {
     if (showLoader) isLoading.value = false
   }
@@ -113,7 +141,6 @@ const loadGame = async (showLoader = false) => {
 // Lancement et arrêt du polling
 const startPolling = () => {
   pollingInterval = setInterval(() => {
-    // On ne rafraîchit que si la partie est active et que ce n'est pas notre tour
     if (game.value && game.value.status === 'PLAYING' && !isMyTurn.value) {
       loadGame(false)
     }
@@ -127,7 +154,10 @@ const stopPolling = () => {
   }
 }
 
+const sidebarCollapsed = useState('sidebarCollapsed', () => false)
+
 onMounted(async () => {
+  sidebarCollapsed.value = true // Masque la sidebar pour libérer de l'espace de jeu
   if (!currentUser.value) {
     await fetchMe()
   }
@@ -137,6 +167,7 @@ onMounted(async () => {
 
 onUnmounted(() => {
   stopPolling()
+  sidebarCollapsed.value = false // Réaffiche la sidebar en quittant la partie
 })
 
 // Déductions d'état
@@ -153,15 +184,85 @@ const isMyTurn = computed(() => {
   if (!game.value || (game.value.status !== 'PLAYING' && game.value.status !== 'PENDING')) return false
   const movesCount = game.value.moves ? game.value.moves.length : 0
   const isAttackerTurn = movesCount % 2 === 0
+  const attackerId = getUserId(game.value.attacker)
+  const defenderId = getUserId(game.value.defender)
   return isAttackerTurn
-    ? game.value.attacker === currentUserId.value
-    : game.value.defender === currentUserId.value
+    ? attackerId === currentUserIdVal.value
+    : defenderId === currentUserIdVal.value
+})
+
+const winnerName = computed(() => {
+  if (!game.value || !game.value.winner) return ''
+  
+  const winnerId = getUserId(game.value.winner)
+  
+  if (winnerId === currentUserIdVal.value) {
+    return currentUser.value?.email?.split('@')[0] || 'Vous'
+  }
+  
+  if (opponentUser.value && winnerId === opponentUser.value.id) {
+    return opponentUser.value?.email?.split('@')[0] || 'Adversaire'
+  }
+  
+  return 'Joueur'
 })
 
 const myRole = computed(() => {
   if (!game.value) return null
-  return game.value.attacker === currentUserId.value ? 'attacker' : 'defender'
+  return getUserId(game.value.attacker) === currentUserIdVal.value ? 'attacker' : 'defender'
 })
+
+// Logique du gameplay
+const handleCellClick = async (y: number, x: number) => {
+  if (!game.value || game.value.status !== 'PLAYING') return
+  if (!isMyTurn.value) return
+
+  const board = currentBoardState.value
+  const cellContent = board[y][x]
+
+  // Cas 1 : Pièce alliée sélectionnée
+  const isAttackerPiece = cellContent === 1
+  const isDefenderPiece = cellContent === 2 || cellContent === 3
+  const isAlliedPiece = (myRole.value === 'attacker' && isAttackerPiece) || 
+                        (myRole.value === 'defender' && isDefenderPiece)
+
+  if (isAlliedPiece) {
+    selectedCell.value = [y, x]
+    calculateValidMoves(y, x)
+    return
+  }
+
+  // Cas 2 : Click sur un déplacement légal
+  const isValidMove = validMoves.value.some((m: [number, number]) => m[0] === y && m[1] === x)
+  if (isValidMove && selectedCell.value) {
+    const [fromY, fromX] = selectedCell.value
+    await playMove(fromY, fromX, y, x)
+  }
+
+  // Reset de la sélection
+  selectedCell.value = null
+  validMoves.value = []
+}
+
+// Envoyer un coup
+const playMove = async (fromY: number, fromX: number, toY: number, toX: number) => {
+  isActionLoading.value = true
+  errorMessage.value = null
+  try {
+    game.value = await apiFetch(`/games/${game.value.id}/play`, {
+      method: 'POST',
+      body: {
+        from: [fromY, fromX],
+        to: [toY, toX]
+      }
+    })
+  } catch (err: any) {
+    console.error('Erreur lors du déplacement:', err)
+    errorMessage.value = "Le mouvement est illégal ou a échoué. Les dieux n'ont pas validé ce coup."
+  } finally {
+    isActionLoading.value = false
+  }
+}
 
 // Calculer les coups valides pour une pièce sélectionnée
 const calculateValidMoves = (y: number, x: number) => {
@@ -175,110 +276,40 @@ const calculateValidMoves = (y: number, x: number) => {
   const size = board.length
   const terrain = boardDetails.value?.terrainLayout || []
 
-  // Directions orthogonales (Hnefatafl ne se joue qu'en lignes droites)
-  const directions = [
-    [0, 1],  // Droite
-    [0, -1], // Gauche
-    [1, 0],  // Bas
-    [-1, 0]  // Haut
-  ]
+  // Directions : haut, bas, gauche, droite
+  const dirs: [number, number][] = [[-1, 0], [1, 0], [0, -1], [0, 1]]
 
-  for (const [dy, dx] of directions) {
-    let ny = y + dy
-    let nx = x + dx
+  for (const [dy, dx] of dirs) {
+    let cy = y + dy
+    let cx = x + dx
+    while (cy >= 0 && cy < size && cx >= 0 && cx < size) {
+      if (board[cy][cx] !== 0) break // Bloqué par une autre pièce
 
-    while (ny >= 0 && ny < size && nx >= 0 && nx < size) {
-      // Bloqué par une autre pièce
-      if (board[ny][nx] !== 0) {
-        break
+      // Seul le Roi (3) peut aller sur le trône (1) et les coins (2)
+      const terrainType = terrain[cy]?.[cx]
+      if (piece !== 3 && (terrainType === 1 || terrainType === 2)) {
+        cy += dy
+        cx += dx
+        continue // Interdit aux pièces de base
       }
 
-      // Règles du terrain : Seul le Roi (3) peut aller sur le Trône (1) ou les Coins (2)
-      const cellTerrain = terrain[ny][nx]
-      if (piece !== 3 && (cellTerrain === 1 || cellTerrain === 2)) {
-        if (cellTerrain === 1) {
-          // Le trône est un obstacle physique infranchissable pour les soldats
-          break
-        }
-        // Coins
-        break
-      }
-
-      moves.push([ny, nx])
-      ny += dy
-      nx += dx
+      moves.push([cy, cx])
+      cy += dy
+      cx += dx
     }
   }
-
-  return moves
+  validMoves.value = moves
 }
 
-// Clic sur une case du plateau
-const handleCellClick = async (y: number, x: number) => {
-  if (!isMyTurn.value || (game.value.status !== 'PLAYING' && game.value.status !== 'PENDING')) return
-
-  const board = currentBoardState.value
-  const piece = board[y][x]
-
-  // Si on clique sur une destination valide de notre pièce sélectionnée
-  if (selectedCell.value && validMoves.value.some(([vy, vx]) => vy === y && vx === x)) {
-    const [fromY, fromX] = selectedCell.value
-    await playMove(fromY, fromX, y, x)
-    selectedCell.value = null
-    validMoves.value = []
-    return
-  }
-
-  // Sinon, on tente de sélectionner un de nos pions
-  if (piece !== 0) {
-    const isAttackerPiece = piece === 1
-    const isDefenderPiece = piece === 2 || piece === 3
-
-    if ((myRole.value === 'attacker' && isAttackerPiece) || (myRole.value === 'defender' && isDefenderPiece)) {
-      selectedCell.value = [y, x]
-      validMoves.value = calculateValidMoves(y, x)
-    } else {
-      selectedCell.value = null
-      validMoves.value = []
-    }
-  } else {
-    selectedCell.value = null
-    validMoves.value = []
-  }
-}
-
-// Jouer un coup via l'API
-const playMove = async (fromY: number, fromX: number, toY: number, toX: number) => {
-  isActionLoading.value = true
-  errorMessage.value = null
-  try {
-    const response = await apiFetch(`/games/${game.value.id}/play`, {
-      method: 'POST',
-      body: {
-        from: [fromY, fromX],
-        to: [toY, toX]
-      }
-    })
-    game.value = response
-  } catch (err: any) {
-    console.error('Erreur de déplacement:', err)
-    errorMessage.value = err.data?.detail || "Mouvement illégal ou refusé par les dieux nordiques."
-  } finally {
-    isActionLoading.value = false
-  }
-}
-
-// Abandonner la partie
+// Abandonner
 const handleResign = async () => {
-  if (!confirm("Êtes-vous sûr de vouloir abandonner cette bataille ? Votre honneur en dépend.")) return
-  
+  if (!confirm("Voulez-vous vraiment sonner la retraite et abandonner cette partie ?")) return
   isActionLoading.value = true
   errorMessage.value = null
   try {
-    const response = await apiFetch(`/games/${game.value.id}/resign`, {
+    game.value = await apiFetch(`/games/${game.value.id}/resign`, {
       method: 'POST'
     })
-    game.value = response
   } catch (err: any) {
     console.error('Erreur lors de l\'abandon:', err)
     errorMessage.value = "Impossible d'abandonner. Le combat doit continuer !"
@@ -287,34 +318,63 @@ const handleResign = async () => {
   }
 }
 
-// Copier le lien de la table de combat
-const copyGameLink = () => {
+// Copier le lien d'invitation
+const isLinkCopied = ref(false)
+
+const copyGameLink = async () => {
   const link = window.location.href
-  navigator.clipboard.writeText(link)
-    .then(() => {
-      alert("Lien de combat copié dans le presse-papier ! Transmettez-le au second joueur.")
-    })
-    .catch(() => {
-      errorMessage.value = `Impossible de copier le lien automatiquement. Le voici : ${link}`
-    })
+  const success = await copyToClipboard(link)
+  if (success) {
+    isLinkCopied.value = true
+    setTimeout(() => {
+      isLinkCopied.value = false
+    }, 3000)
+  } else {
+    errorMessage.value = `Impossible de copier le lien. Le voici : ${link}`
+  }
 }
 
-// Obtenir le libellé de notation pour le coup
-const getMoveLabel = (move: any) => {
-  const cols = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S']
-  const [fY, fX] = move.from
-  const [tY, tX] = move.to
-  return `${move.player === 'attacker' ? '⚔️' : '🛡️'} ${cols[fX]}${boardSize.value - fY} ➔ ${cols[tX]}${boardSize.value - tY}`
+// Envoi d'un message dans le chat
+const isSendingMessage = ref(false)
+
+const sendChatMessage = async (text: string) => {
+  if (!text || !game.value) return
+  isSendingMessage.value = true
+  try {
+    const newMsg = {
+      sender: currentUser.value?.email?.split('@')[0] || 'Joueur',
+      text: text,
+      timestamp: new Date().toISOString()
+    }
+    const currentChat = game.value.chat || []
+    const updatedChat = [...currentChat, newMsg]
+    
+    game.value.chat = updatedChat
+    
+    game.value = await apiFetch(`/games/${game.value.id}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/merge-patch+json'
+      },
+      body: {
+        chat: updatedChat
+      }
+    })
+  } catch (err) {
+    console.error('Erreur lors de l\'envoi du message:', err)
+  } finally {
+    isSendingMessage.value = false
+  }
 }
 </script>
 
 <template>
-  <div class="space-y-6 max-w-7xl mx-auto">
+  <div class="h-auto lg:h-[calc(100vh-100px)] flex flex-col max-w-7xl mx-auto overflow-y-auto lg:overflow-hidden">
     <!-- Retour au hall -->
-    <div class="flex items-center justify-between">
+    <div class="flex items-center justify-between py-2 shrink-0">
       <UButton
           to="/games"
-          variant="Link"
+          variant="link"
           icon="i-lucide-arrow-left"
           class="text-pine-cone-600 font-bold"
       >
@@ -327,12 +387,7 @@ const getMoveLabel = (move: any) => {
     </div>
 
     <!-- Chargement -->
-    <div v-if="isLoading" class="flex flex-col items-center justify-center py-32 space-y-4">
-      <UIcon name="i-lucide-loader-2" class="w-12 h-12 text-primary-600 animate-spin" />
-      <p class="text-sm font-semibold font-['Cinzel',serif] text-pine-cone-600 tracking-wider">
-        Déploiement du plateau de guerre...
-      </p>
-    </div>
+    <MoleculesLoadingScreen v-if="isLoading" />
 
     <!-- Alertes -->
     <UAlert
@@ -341,225 +396,71 @@ const getMoveLabel = (move: any) => {
         variant="subtle"
         icon="i-lucide-alert-triangle"
         :title="errorMessage"
-        class="rounded-xl"
+        class="rounded-xl shrink-0 mb-4"
     />
 
     <!-- Vue principale de la partie -->
-    <div v-if="game && boardDetails" class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+    <div v-if="game && boardDetails" class="grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 min-h-0 overflow-y-auto lg:overflow-hidden mb-4">
       
       <!-- Colonne Plateau (8/12) -->
-      <div class="lg:col-span-8 flex flex-col items-center">
-        <!-- Infos Joueurs au dessus du plateau -->
-        <div class="w-full max-w-[600px] flex items-center justify-between mb-4 bg-white p-4 rounded-xl border border-neutral-200 shadow-sm">
-          <!-- Adversaire -->
-          <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-full flex-center bg-oil-100 text-oil-950 font-bold text-lg ring-1 ring-oil-200">
-              {{ opponentUser?.email?.charAt(0).toUpperCase() || '?' }}
-            </div>
-            <div>
-              <p class="font-bold text-oil-950 text-sm">{{ opponentUser?.email?.split('@')[0] || 'Opposant' }}</p>
-              <p class="text-xs text-pine-cone-500">{{ opponentUser?.elo || 1200 }} Elo • {{ myRole === 'attacker' ? 'Défense (Blancs)' : 'Attaque (Noirs)' }}</p>
-            </div>
-          </div>
-
-          <!-- Indicateur de tour -->
-          <div class="text-right">
-            <span v-if="game.status === 'FINISHED'" class="text-xs font-bold text-error-700 bg-error-50 border border-error-100 px-3 py-1.5 rounded-full uppercase tracking-wider">
-              🏆 Match terminé
-            </span>
-            <span v-else-if="isMyTurn" class="text-xs font-extrabold text-white bg-primary-700 px-3 py-1.5 rounded-full uppercase tracking-wider animate-pulse flex items-center gap-1.5 shadow-md">
-              <span>⚔️ À VOUS</span>
-            </span>
-            <span v-else class="text-xs font-semibold text-pine-cone-600 bg-neutral-100 border border-neutral-200 px-3 py-1.5 rounded-full uppercase tracking-wider">
-              ⌛ Tour adverse
-            </span>
-          </div>
-        </div>
+      <div class="lg:col-span-8 flex flex-col items-center justify-between h-auto lg:h-full min-h-0">
+        <!-- Infos Joueur Adversaire au-dessus -->
+        <MoleculesPlayerInfoCard
+          :email="opponentUser?.email"
+          :elo="opponentUser?.elo"
+          :role="myRole === 'attacker' ? 'defender' : 'attacker'"
+          :is-current-player="false"
+          :show-turn-indicator="true"
+          :is-turn-active="!isMyTurn"
+          :game-status="game.status"
+          class="mb-3"
+        />
 
         <!-- Le Plateau de Jeu -->
-        <div class="w-full max-w-[600px] aspect-square bg-oil-950 p-3 rounded-2xl shadow-2xl relative border-4 border-oil-900">
-          <div 
-              class="grid h-full w-full gap-[2px] bg-oil-800 rounded-lg overflow-hidden"
-              :style="`grid-template-columns: repeat(${boardSize}, minmax(0, 1fr)); grid-template-rows: repeat(${boardSize}, minmax(0, 1fr))`"
-          >
-            <!-- Rendu de chaque case -->
-            <div
-                v-for="idx in boardSize * boardSize"
-                :key="idx"
-                @click="handleCellClick(Math.floor((idx - 1) / boardSize), (idx - 1) % boardSize)"
-                class="relative aspect-square transition-all duration-200 select-none flex items-center justify-center cursor-pointer"
-                :class="[
-                  // Alternance de couleur du plateau
-                  (Math.floor((idx - 1) / boardSize) + ((idx - 1) % boardSize)) % 2 === 0
-                     ? 'bg-neutral-200 hover:bg-neutral-300'
-                     : 'bg-neutral-300 hover:bg-neutral-400',
-                  
-                  // Style spécial Trône (Centre)
-                  boardDetails.terrainLayout[Math.floor((idx - 1) / boardSize)][(idx - 1) % boardSize] === 1
-                    ? '!bg-oil-800 border-2 border-golden-grass-500/40'
-                    : '',
-                  
-                  // Style spécial Coins (Échappatoire)
-                  boardDetails.terrainLayout[Math.floor((idx - 1) / boardSize)][(idx - 1) % boardSize] === 2
-                    ? '!bg-golden-grass-200/50 border border-golden-grass-500'
-                    : '',
-                  
-                  // Sélectionné
-                  selectedCell && selectedCell[0] === Math.floor((idx - 1) / boardSize) && selectedCell[1] === (idx - 1) % boardSize
-                    ? 'ring-4 ring-primary-500 ring-inset z-10'
-                    : ''
-                ]"
-            >
-              <!-- Repère visuel pour le trône (Runes/Croix) -->
-              <span 
-                  v-if="boardDetails.terrainLayout[Math.floor((idx - 1) / boardSize)][(idx - 1) % boardSize] === 1 && currentBoardState[Math.floor((idx - 1) / boardSize)][(idx - 1) % boardSize] === 0"
-                  class="text-golden-grass-500/30 font-bold text-lg select-none"
-              >
-                ᛟ
-              </span>
+        <MoleculesGameBoard
+          :board-size="boardSize"
+          :board-state="currentBoardState"
+          :terrain-layout="boardDetails.terrainLayout"
+          :valid-moves="validMoves"
+          :selected-cell="selectedCell"
+          :interactive="true"
+          @cell-click="handleCellClick"
+        />
 
-              <!-- Pions -->
-              <div
-                  v-if="currentBoardState[Math.floor((idx - 1) / boardSize)][(idx - 1) % boardSize] !== 0"
-                  class="w-4/5 h-4/5 rounded-full flex items-center justify-center font-bold shadow-md transform hover:scale-105 transition-transform duration-200"
-                  :class="[
-                    // Attaquant (1) - Noir / Or Viking
-                    currentBoardState[Math.floor((idx - 1) / boardSize)][(idx - 1) % boardSize] === 1
-                      ? 'bg-oil-900 border-2 border-oil-950 text-white text-xs ring-1 ring-vert-600/40'
-                      : '',
-                    
-                    // Défenseur (2) - Beige / Cuir
-                    currentBoardState[Math.floor((idx - 1) / boardSize)][(idx - 1) % boardSize] === 2
-                      ? 'bg-neutral-50 border-2 border-neutral-400 text-oil-950 text-xs shadow-inner'
-                      : '',
-                    
-                    // Le Roi (3) - Trône / Or étincelant
-                    currentBoardState[Math.floor((idx - 1) / boardSize)][(idx - 1) % boardSize] === 3
-                      ? 'bg-golden-grass-500 border-4 border-golden-grass-600 text-golden-grass-950 text-base ring-2 ring-golden-grass-300 font-extrabold scale-105 shadow-xl'
-                      : ''
-                  ]"
-              >
-                <!-- Symbole sur le bouclier -->
-                <span v-if="currentBoardState[Math.floor((idx - 1) / boardSize)][(idx - 1) % boardSize] === 1" class="text-[9px] opacity-70">⚡</span>
-                <span v-if="currentBoardState[Math.floor((idx - 1) / boardSize)][(idx - 1) % boardSize] === 2" class="text-[9px] opacity-70">🛡️</span>
-                <span v-if="currentBoardState[Math.floor((idx - 1) / boardSize)][(idx - 1) % boardSize] === 3" class="text-sm">👑</span>
-              </div>
-
-              <!-- Indicateur de déplacement possible (Petit point vert) -->
-              <div
-                  v-if="validMoves.some(([vy, vx]) => vy === Math.floor((idx - 1) / boardSize) && vx === (idx - 1) % boardSize)"
-                  class="absolute w-4 h-4 rounded-full bg-primary-500/60 ring-2 ring-white/30 z-10"
-              />
-            </div>
-          </div>
-        </div>
-
-        <!-- Infos Joueur en dessous du plateau -->
-        <div class="w-full max-w-[600px] flex items-center justify-between mt-4 bg-white p-4 rounded-xl border border-neutral-200 shadow-sm">
-          <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-full flex-center bg-primary-700 text-golden-grass-500 font-bold text-lg ring-1 ring-primary-800">
-              {{ currentUser?.email?.charAt(0).toUpperCase() || 'V' }}
-            </div>
-            <div>
-              <p class="font-bold text-oil-950 text-sm">Vous ({{ currentUser?.email?.split('@')[0] }})</p>
-              <p class="text-xs text-pine-cone-500">{{ currentUser?.elo || 1200 }} Elo • {{ myRole === 'attacker' ? 'Attaque (Noirs)' : 'Défense (Blancs)' }}</p>
-            </div>
-          </div>
-        </div>
+        <!-- Infos Joueur Local en-dessous -->
+        <MoleculesPlayerInfoCard
+          :email="currentUser?.email"
+          :elo="currentUser?.elo"
+          :role="myRole || 'attacker'"
+          :is-current-player="true"
+          :show-turn-indicator="true"
+          :is-turn-active="isMyTurn"
+          :game-status="game.status"
+          class="mt-3"
+        />
       </div>
 
       <!-- Colonne Panneau de jeu (4/12) -->
-      <div class="lg:col-span-4 space-y-6">
-        <!-- Carte d'état de la partie -->
-        <UCard variant="subtle" class="shadow-sm">
-          <template #header>
-            <h3 class="text-lg font-bold font-['Cinzel',serif] text-oil-950 flex items-center gap-2">
-              <UIcon name="i-lucide-scroll" class="text-golden-grass-600" />
-              Rapport de Guerre
-            </h3>
-          </template>
+      <div class="lg:col-span-4 flex flex-col gap-4 h-auto lg:h-full min-h-0 overflow-y-auto lg:overflow-hidden">
+        <!-- Journal de combat / Actions -->
+        <OrganismsBattleLog
+          :game="game"
+          :winner-name="winnerName"
+          :is-link-copied="isLinkCopied"
+          :is-action-loading="isActionLoading"
+          @copy-link="copyGameLink"
+          @resign="handleResign"
+        />
 
-          <div class="space-y-4">
-            <div class="flex justify-between items-center text-sm">
-              <span class="text-pine-cone-600">Statut :</span>
-              <span class="font-bold uppercase tracking-wider" :class="game.status === 'PLAYING' ? 'text-primary-700' : 'text-error-600'">
-                {{ game.status === 'PLAYING' ? 'En cours' : 'Terminée' }}
-              </span>
-            </div>
-
-            <!-- Affichage du gagnant si fini -->
-            <div v-if="game.status === 'FINISHED'" class="bg-primary-50 border border-primary-200 p-4 rounded-xl text-center space-y-2">
-              <UIcon name="i-lucide-crown" class="w-10 h-10 text-golden-grass-500 mx-auto animate-bounce" />
-              <h4 class="font-bold font-['Cinzel',serif] text-primary-900 text-base">Victoire de</h4>
-              <p class="text-lg font-extrabold text-primary-950">
-                {{ game.winner ? (game.winner.email ? game.winner.email.split('@')[0] : 'Joueur Gagnant') : 'Égalité' }}
-              </p>
-            </div>
-
-            <div class="flex justify-between items-center text-sm">
-              <span class="text-pine-cone-600">Cadence :</span>
-              <span class="font-bold text-oil-950">{{ game.timeControl }}</span>
-            </div>
-
-            <!-- Liste des coups -->
-            <div class="space-y-2">
-              <span class="text-xs font-bold text-pine-cone-600 uppercase tracking-wider">Journal de combat :</span>
-              <div class="h-[180px] overflow-y-auto border border-neutral-200 rounded-xl bg-white p-3 space-y-1.5 text-sm font-medium">
-                <div v-if="!game.moves || game.moves.length === 0" class="text-xs text-pine-cone-400 text-center py-10">
-                  Aucun mouvement n'a encore été tenté. Que la bataille commence !
-                </div>
-                <div 
-                    v-for="(move, idx) in game.moves" 
-                    :key="idx"
-                    class="flex justify-between items-center py-1 px-2 rounded hover:bg-neutral-50"
-                >
-                  <span class="text-xs text-pine-cone-400 font-bold">#{{ idx + 1 }}</span>
-                  <span class="font-bold text-oil-900">{{ getMoveLabel(move) }}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <template #footer>
-            <div class="space-y-3">
-              <UButton
-                  v-if="game.status === 'PLAYING' || game.status === 'PENDING'"
-                  variant="outline"
-                  block
-                  icon="i-lucide-share-2"
-                  @click="copyGameLink"
-                  class="font-semibold text-warning-600 border-warning-500/30 hover:bg-warning-50"
-              >
-                Copier le lien d'invitation
-              </UButton>
-              <UButton
-                  v-if="game.status === 'PLAYING'"
-                  variant="outline"
-                  color="error"
-                  block
-                  icon="i-lucide-flag"
-                  :loading="isActionLoading"
-                  @click="handleResign"
-              >
-                Abandonner la bataille
-              </UButton>
-              <UButton
-                  to="/games"
-                  variant="outline"
-                  block
-                  icon="i-lucide-arrow-left"
-              >
-                Retour au Hall
-              </UButton>
-            </div>
-          </template>
-        </UCard>
+        <!-- Chat de Taverne -->
+        <OrganismsTavernChat
+          :messages="game.chat || []"
+          :current-sender-name="currentUser?.email?.split('@')[0] || 'Joueur'"
+          :is-sending="isSendingMessage"
+          @send="sendChatMessage"
+        />
       </div>
 
     </div>
   </div>
 </template>
-
-<style scoped>
-/* Style spécifique pour le plateau */
-</style>

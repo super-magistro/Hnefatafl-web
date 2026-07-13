@@ -343,5 +343,17 @@ class AppFixtures extends Fixture
         $user3->setPassword($this->passwordHasher->hashPassword($user3, 'Password123!'));
         $user3->setElo(1350);
         $manager->persist($user3);
+
+        $bot = new User();
+        $bot->setEmail('bot@hnefatafl.com');
+        $bot->setPassword($this->passwordHasher->hashPassword($bot, 'Password123!'));
+        $bot->setElo(1400); // Bot Minimax difficile
+        $manager->persist($bot);
+
+        $easyBot = new User();
+        $easyBot->setEmail('easy-bot@hnefatafl.com');
+        $easyBot->setPassword($this->passwordHasher->hashPassword($easyBot, 'Password123!'));
+        $easyBot->setElo(400); // Bot Novice facile
+        $manager->persist($easyBot);
     }
 }
