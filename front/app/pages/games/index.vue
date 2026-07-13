@@ -31,6 +31,7 @@ const isChallengeModalOpen = ref(false)
 // Formulaire de défi (sans opponentSelect, uniquement side et time)
 const selectedSide = ref<'attacker' | 'defender' | 'random'>('random')
 const selectedTimeControl = ref('10+5')
+const opponentType = ref<'friend' | 'bot' | 'easy-bot'>('friend')
 
 // Index du variant sélectionné
 const selectedBoardIndex = useState('selectedBoardIndex', () => 0)
@@ -281,7 +282,7 @@ const stopMatchmaking = async (findMatch = false) => {
   }
 }
 
-// Défi Ami (Création d'une partie avec l'opposant vide)
+// Défi Ami / IA (Création d'une partie avec l'opposant vide ou Bot)
 const handleCreateGame = async () => {
   isSubmitting.value = true
   errorMessage.value = null
@@ -303,10 +304,30 @@ const handleCreateGame = async () => {
       side = Math.random() > 0.5 ? 'attacker' : 'defender'
     }
 
+    const isBot = (opponentType.value === 'bot' || opponentType.value === 'easy-bot')
+    let botIri: string | null = null
+    const botEmail = opponentType.value === 'easy-bot' ? 'easy-bot@hnefatafl.com' : 'bot@hnefatafl.com'
+
+    if (isBot) {
+      const botUser = users.value.find((u: any) => u.email === botEmail)
+      if (!botUser) {
+        errorMessage.value = `L'adversaire Bot (${botEmail}) n'est pas disponible. Essayez de recharger les runes du Hall.`
+        isSubmitting.value = false
+        return
+      }
+      botIri = botUser['@id']
+    }
+
     if (side === 'attacker') {
       attackerIri = currentUserId.value
+      if (isBot) {
+        defenderIri = botIri
+      }
     } else {
       defenderIri = currentUserId.value
+      if (isBot) {
+        attackerIri = botIri
+      }
     }
 
     const board = selectedBoard.value
@@ -324,7 +345,7 @@ const handleCreateGame = async () => {
     const payload = {
       variant: board.name.split(' ')[0],
       timeControl: selectedTimeControl.value,
-      status: 'PENDING',
+      status: isBot ? 'PLAYING' : 'PENDING',
       attacker: attackerIri,
       defender: defenderIri,
       gameBoard: boardIri,
@@ -341,26 +362,31 @@ const handleCreateGame = async () => {
 
     isChallengeModalOpen.value = false
     
-    // Copier immédiatement le lien et avertir l'utilisateur
-    copyGameLink(newGame.id)
-
-    await loadData()
+    if (isBot) {
+      navigateTo(`/games/${newGame.id}`)
+    } else {
+      // Copier immédiatement le lien et avertir l'utilisateur
+      copyGameLink(newGame.id)
+      await loadData()
+    }
   } catch (err: any) {
-    console.error('Erreur de création de défi lien:', err, err.data)
+    console.error('Erreur de création de défi:', err, err.data)
     errorMessage.value = err.data?.detail || err.data?.description || "Impossible de créer la table de défi."
   } finally {
     isSubmitting.value = false
   }
 }
 
-// Alerte IA
-const showBotWarning = () => {
-  botWarning.value = "Les corbeaux d'Odin survolent le champ de bataille, mais les forges d'Asgard travaillent encore sur l'intelligence artificielle du Père de Tout. Cette fonctionnalité sera disponible dans une prochaine mise à jour !"
-  errorMessage.value = null
-  successMessage.value = null
-  setTimeout(() => {
-    if (botWarning.value) botWarning.value = null
-  }, 6000)
+// Lancement contre le Bot Odin (Difficile)
+const playAgainstBot = () => {
+  opponentType.value = 'bot'
+  isChallengeModalOpen.value = true
+}
+
+// Lancement contre le Bot Novice (Facile)
+const playAgainstEasyBot = () => {
+  opponentType.value = 'easy-bot'
+  isChallengeModalOpen.value = true
 }
 </script>
 
@@ -439,8 +465,9 @@ const showBotWarning = () => {
           v-else
           :user-elo="currentUserElo"
           @matchmaking="startMatchmaking"
-          @challenge="isChallengeModalOpen = true"
-          @bot-warning="showBotWarning"
+          @challenge="isChallengeModalOpen = true; opponentType = 'friend'"
+          @play-bot="playAgainstBot"
+          @play-easy-bot="playAgainstEasyBot"
         />
       </div>
 
@@ -595,7 +622,28 @@ const showBotWarning = () => {
               <span class="text-xs font-bold text-pine-cone-500 uppercase tracking-wider block">Variante Sélectionnée</span>
               <span class="text-base font-extrabold text-neutral-950 block mt-0.5">{{ selectedBoard.name }}</span>
             </div>
-
+            <!-- Choix de l'adversaire -->
+            <div>
+              <label class="block text-xs font-bold text-neutral-950 uppercase tracking-wider mb-2">Adversaire</label>
+              <div class="grid grid-cols-2 gap-2">
+                <UButton
+                    type="button"
+                    class="justify-center font-bold text-xs"
+                    :variant="opponentType === 'friend' ? 'tabActive' : 'tabInactive'"
+                    @click="opponentType = 'friend'"
+                >
+                  👥 Inviter un Ami
+                </UButton>
+                <UButton
+                    type="button"
+                    class="justify-center font-bold text-xs"
+                    :variant="opponentType === 'bot' ? 'tabActive' : 'tabInactive'"
+                    @click="opponentType = 'bot'"
+                >
+                  🤖 Affronter le Bot (Odin)
+                </UButton>
+              </div>
+            </div>
             <!-- Choix du camp -->
             <div>
               <label class="block text-xs font-bold text-neutral-950 uppercase tracking-wider mb-2">Votre camp</label>
@@ -650,7 +698,7 @@ const showBotWarning = () => {
                 :loading="isSubmitting"
                 class="mt-6 font-bold"
             >
-              Générer le Lien d'Invitation
+              {{ opponentType === 'easy-bot' ? "Affronter le Novice d'Yggdrasil" : opponentType === 'bot' ? "Lancer la Bataille contre Odin" : "Générer le Lien d'Invitation" }}
             </UButton>
           </form>
         </UCard>

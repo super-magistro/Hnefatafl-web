@@ -74,7 +74,7 @@
 
           <div
             v-if="interactive && validMoves.some((m: [number, number]) => m[0] === Math.floor((idx - 1) / boardSize) && m[1] === (idx - 1) % boardSize)"
-            class="absolute w-4 h-4 rounded-full bg-primary-500/60 ring-2 ring-white/30 z-10"
+            class="absolute w-3.5 h-3.5 rounded-full bg-vert-500 border border-white ring-2 ring-vert-400/40 shadow-sm z-10"
           />
         </div>
       </div>
@@ -104,14 +104,14 @@ const props = withDefaults(
 
 
 const emit = defineEmits<{
-  (e: 'cellClick', y: number, x: number): void
+  (e: 'cell-click', y: number, x: number): void
 }>()
 
 const marginSize = computed(() => props.interactive ? '330px' : '150px')
 
 const onCellClick = (y: number, x: number) => {
   if (!props.interactive) return
-  emit('cellClick', y, x)
+  emit('cell-click', y, x)
 }
 </script>
 

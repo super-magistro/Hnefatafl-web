@@ -39,6 +39,21 @@ class GamePlayController extends AbstractController
 
         $this->entityManager->flush();
 
+        // Si le joueur suivant est le Bot, on le fait jouer immédiatement dans la foulée
+        $movesCount = count($data->getMoves());
+        $isAttackerTurn = ($movesCount % 2 === 0);
+        $nextPlayer = $isAttackerTurn ? $data->getAttacker() : $data->getDefender();
+
+        $botEmails = ['bot@hnefatafl.com', 'easy-bot@hnefatafl.com'];
+        if ($nextPlayer && in_array($nextPlayer->getEmail(), $botEmails, true)) {
+            try {
+                $this->gameEngine->makeBotMove($data, $nextPlayer->getEmail());
+                $this->entityManager->flush();
+            } catch (\Exception $e) {
+                // Optionnellement logger l'erreur
+            }
+        }
+
         // On retourne une réponse JSON propre
         return $this->json($data);
     }

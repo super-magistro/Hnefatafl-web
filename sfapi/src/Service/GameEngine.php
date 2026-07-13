@@ -46,7 +46,7 @@ class GameEngine
         $gameBoard = $game->getGameBoard();
         $terrain = $gameBoard->getTerrainLayout();
         $boardSize = $gameBoard->getBoardSize();
-        
+
         // Récupération des règles de la variante (ou par défaut)
         $rules = $gameBoard?->getRules() ?: GameRules::getRulesForVariant($game->getVariant() ?? '');
 
@@ -246,7 +246,7 @@ class GameEngine
 
             // Les coins et le trône (selon la règle d'hostilité) peuvent servir d'enclume s'ils sont vides
             $isCornerHostile = ($anvilTerrain === self::CELL_CORNER) && ($anvilPiece === self::EMPTY);
-            
+
             $throneHostility = $rules[GameRules::KEY_THRONE_HOSTILITY] ?? GameRules::THRONE_HOSTILE_EMPTY;
             $isThroneHostile = ($anvilTerrain === self::CELL_THRONE) && ($anvilPiece === self::EMPTY) && ($throneHostility !== GameRules::THRONE_NEVER_HOSTILE);
 
@@ -344,7 +344,7 @@ class GameEngine
                     && $this->isAnvilForKing($kY + 1, $kX, $board, $terrain, $size, $rules);
                 $horizontalSandwich = $this->isAnvilForKing($kY, $kX - 1, $board, $terrain, $size, $rules)
                     && $this->isAnvilForKing($kY, $kX + 1, $board, $terrain, $size, $rules);
-                
+
                 if ($verticalSandwich || $horizontalSandwich) {
                     return 'ATTACKER';
                 }
@@ -404,5 +404,377 @@ class GameEngine
         }
 
         return false;
+    }
+
+    /**
+     * Génère tous les mouvements possibles pour un camp donné
+     */
+    public function generatePossibleMoves(Game $game, ?bool $forAttacker = null): array
+    {
+        $board = $game->getBoardState();
+        if (empty($board)) {
+            $board = $game->getGameBoard()->getInitialLayout();
+        }
+        $gameBoard = $game->getGameBoard();
+        $terrain = $gameBoard->getTerrainLayout();
+        $boardSize = $gameBoard->getBoardSize();
+
+        if ($forAttacker === null) {
+            $movesCount = count($game->getMoves());
+            $forAttacker = ($movesCount % 2 === 0);
+        }
+
+        return $this->generateMovesForBoard($board, $boardSize, $terrain, $forAttacker);
+    }
+
+    /**
+     * Génère les mouvements possibles directement à partir d'un tableau de plateau
+     */
+    private function generateMovesForBoard(array $board, int $boardSize, array $terrain, bool $forAttacker): array
+    {
+        $possibleMoves = [];
+        $directions = [[0, 1], [0, -1], [1, 0], [-1, 0]];
+
+        for ($y = 0; $y < $boardSize; $y++) {
+            for ($x = 0; $x < $boardSize; $x++) {
+                $piece = $board[$y][$x];
+                if ($piece === self::EMPTY) continue;
+
+                $isPieceOwned = $forAttacker
+                    ? ($piece === self::ATTACKER)
+                    : ($piece === self::DEFENDER || $piece === self::KING);
+
+                if (!$isPieceOwned) continue;
+
+                foreach ($directions as [$dy, $dx]) {
+                    $currY = $y + $dy;
+                    $currX = $x + $dx;
+
+                    while ($currY >= 0 && $currY < $boardSize && $currX >= 0 && $currX < $boardSize) {
+                        if ($board[$currY][$currX] !== self::EMPTY) break;
+
+                        $targetTerrain = $terrain[$currY][$currX] ?? self::CELL_NORMAL;
+                        if ($piece !== self::KING && ($targetTerrain === self::CELL_THRONE || $targetTerrain === self::CELL_CORNER)) {
+                            $currY += $dy;
+                            $currX += $dx;
+                            continue;
+                        }
+
+                        $possibleMoves[] = ['from' => [$y, $x], 'to' => [$currY, $currX]];
+
+                        $currY += $dy;
+                        $currX += $dx;
+                    }
+                }
+            }
+        }
+
+        return $possibleMoves;
+    }
+
+    /**
+     * Calcule et joue le meilleur coup pour le Bot.
+     * Route vers le bon algorithme selon l'email du bot.
+     * - 'easy-bot@hnefatafl.com' → Algorithme heuristique basique (Novice)
+     * - 'bot@hnefatafl.com'      → Minimax + Alpha-Beta (Odin)
+     */
+    public function makeBotMove(Game $game, ?string $botEmail = null): ?Game
+    {
+        if ($botEmail === 'easy-bot@hnefatafl.com') {
+            return $this->makeEasyBotMove($game);
+        }
+        return $this->makeHardBotMove($game);
+    }
+
+    /**
+     * Bot Novice (Facile) — Algorithme heuristique basique
+     * Prioritise les captures et la proximité du Roi, sans exploration future.
+     */
+    private function makeEasyBotMove(Game $game): ?Game
+    {
+        $boardBefore = $game->getBoardState();
+        if (empty($boardBefore)) {
+            $boardBefore = $game->getGameBoard()->getInitialLayout();
+        }
+        $gameBoard = $game->getGameBoard();
+        $terrain = $gameBoard->getTerrainLayout();
+        $boardSize = $gameBoard->getBoardSize();
+        $rules = $gameBoard?->getRules() ?: GameRules::getRulesForVariant($game->getVariant() ?? '');
+
+        $movesCount = count($game->getMoves());
+        $isAttacker = ($movesCount % 2 === 0);
+
+        $possibleMoves = $this->generateMovesForBoard($boardBefore, $boardSize, $terrain, $isAttacker);
+        if (empty($possibleMoves)) return null;
+
+        $opponentPieceType = $isAttacker ? self::DEFENDER : self::ATTACKER;
+        $opponentCountBefore = 0;
+        $kingYBefore = null;
+        $kingXBefore = null;
+        for ($y = 0; $y < $boardSize; $y++) {
+            for ($x = 0; $x < $boardSize; $x++) {
+                if ($boardBefore[$y][$x] === $opponentPieceType || ($isAttacker && $boardBefore[$y][$x] === self::KING)) {
+                    $opponentCountBefore++;
+                }
+                if ($boardBefore[$y][$x] === self::KING) {
+                    $kingYBefore = $y;
+                    $kingXBefore = $x;
+                }
+            }
+        }
+
+        $bestMove = null;
+        $bestScore = -INF;
+
+        foreach ($possibleMoves as $move) {
+            $score = rand(0, 100); // Base aléatoire → rend le bot imparfait
+            $from = $move['from'];
+            $to = $move['to'];
+
+            $boardSim = $boardBefore;
+            $pieceMoved = $boardSim[$from[0]][$from[1]];
+            $boardSim[$to[0]][$to[1]] = $pieceMoved;
+            $boardSim[$from[0]][$from[1]] = self::EMPTY;
+            $boardSim = $this->handleCaptures($boardSim, $to[1], $to[0], $pieceMoved, $terrain, $boardSize, $rules);
+
+            // 1. Coup gagnant immédiat → priorité absolue
+            $victory = $this->checkVictory($boardSim, $terrain, $boardSize, $rules);
+            if ($victory !== null) {
+                if (($victory === 'ATTACKER' && $isAttacker) || ($victory === 'DEFENDER' && !$isAttacker)) {
+                    $score += 1000000;
+                }
+            }
+
+            // 2. Bonus captures
+            $opponentCountAfter = 0;
+            for ($y = 0; $y < $boardSize; $y++) {
+                for ($x = 0; $x < $boardSize; $x++) {
+                    if ($boardSim[$y][$x] === $opponentPieceType || ($isAttacker && $boardSim[$y][$x] === self::KING)) {
+                        $opponentCountAfter++;
+                    }
+                }
+            }
+            $captures = $opponentCountBefore - $opponentCountAfter;
+            if ($captures > 0) {
+                $score += $captures * 2000;
+            }
+
+            // 3. Heuristiques positionnelles simples
+            if (!$isAttacker && $pieceMoved === self::KING && $kingYBefore !== null) {
+                $corners = [[0, 0], [0, $boardSize-1], [$boardSize-1, 0], [$boardSize-1, $boardSize-1]];
+                $minDistBefore = INF;
+                $minDistAfter = INF;
+                foreach ($corners as [$cY, $cX]) {
+                    $minDistBefore = min($minDistBefore, abs($from[0]-$cY)+abs($from[1]-$cX));
+                    $minDistAfter  = min($minDistAfter,  abs($to[0]-$cY)+abs($to[1]-$cX));
+                }
+                $score += ($minDistBefore - $minDistAfter) * 1000;
+            } elseif ($isAttacker && $kingYBefore !== null) {
+                $distBefore = abs($from[0]-$kingYBefore)+abs($from[1]-$kingXBefore);
+                $distAfter  = abs($to[0]-$kingYBefore)+abs($to[1]-$kingXBefore);
+                $score += ($distBefore - $distAfter) * 150;
+                if ($distAfter === 1) $score += 1000;
+            }
+
+            if ($score > $bestScore) {
+                $bestScore = $score;
+                $bestMove = $move;
+            }
+        }
+
+        if ($bestMove) {
+            return $this->playMove($game, $bestMove['from'], $bestMove['to'], null);
+        }
+
+        return null;
+    }
+
+    /**
+     * Bot Odin (Difficile) — Minimax + Alpha-Beta Pruning (profondeur 3)
+     * Inspiré de Bokhtiar-Adil/Vikings-chess-Hnefatafl
+     */
+    private function makeHardBotMove(Game $game): ?Game
+    {
+        $board = $game->getBoardState();
+        if (empty($board)) {
+            $board = $game->getGameBoard()->getInitialLayout();
+        }
+        $gameBoard = $game->getGameBoard();
+        $terrain = $gameBoard->getTerrainLayout();
+        $boardSize = $gameBoard->getBoardSize();
+        $rules = $gameBoard?->getRules() ?: GameRules::getRulesForVariant($game->getVariant() ?? '');
+
+        $movesCount = count($game->getMoves());
+        $isAttacker = ($movesCount % 2 === 0);
+
+        $depth = 3;
+        $bestMove = null;
+        $bestScore = $isAttacker ? -PHP_INT_MAX : PHP_INT_MAX;
+
+        $possibleMoves = $this->generateMovesForBoard($board, $boardSize, $terrain, $isAttacker);
+        if (empty($possibleMoves)) return null;
+
+        shuffle($possibleMoves);
+
+        foreach ($possibleMoves as $move) {
+            $boardSim = $this->applyMove($board, $move['from'], $move['to']);
+            $boardSim = $this->handleCaptures($boardSim, $move['to'][1], $move['to'][0], $board[$move['from'][0]][$move['from'][1]], $terrain, $boardSize, $rules);
+
+            $score = $this->minimax($boardSim, $depth - 1, !$isAttacker, -PHP_INT_MAX, PHP_INT_MAX, $boardSize, $terrain, $rules);
+
+            if ($isAttacker && $score > $bestScore) {
+                $bestScore = $score;
+                $bestMove = $move;
+            } elseif (!$isAttacker && $score < $bestScore) {
+                $bestScore = $score;
+                $bestMove = $move;
+            }
+        }
+
+        if ($bestMove) {
+            return $this->playMove($game, $bestMove['from'], $bestMove['to'], null);
+        }
+
+        return null;
+    }
+
+    /**
+     * Algorithme Minimax avec Alpha-Bêta Pruning
+     * L'Attaquant est MAX, le Défenseur/Roi est MIN
+     */
+    private function minimax(array $board, int $depth, bool $isAttackerTurn, int $alpha, int $beta, int $boardSize, array $terrain, array $rules): int
+    {
+        // Vérifier la victoire sur ce plateau
+        $victory = $this->checkVictory($board, $terrain, $boardSize, $rules);
+        if ($victory === 'ATTACKER') return 100000;
+        if ($victory === 'DEFENDER') return -100000;
+
+        if ($depth === 0) {
+            return $this->evaluateBoard($board, $boardSize, $terrain);
+        }
+
+        $moves = $this->generateMovesForBoard($board, $boardSize, $terrain, $isAttackerTurn);
+        if (empty($moves)) {
+            // Aucun coup disponible = défaite pour ce camp
+            return $isAttackerTurn ? -100000 : 100000;
+        }
+
+        if ($isAttackerTurn) {
+            // MAX (Attaquant veut maximiser)
+            $maxScore = -PHP_INT_MAX;
+            foreach ($moves as $move) {
+                $boardSim = $this->applyMove($board, $move['from'], $move['to']);
+                $piece = $board[$move['from'][0]][$move['from'][1]];
+                $boardSim = $this->handleCaptures($boardSim, $move['to'][1], $move['to'][0], $piece, $terrain, $boardSize, $rules);
+
+                $score = $this->minimax($boardSim, $depth - 1, false, $alpha, $beta, $boardSize, $terrain, $rules);
+                $maxScore = max($maxScore, $score);
+                $alpha = max($alpha, $score);
+                if ($beta <= $alpha) break; // Élagage Bêta
+            }
+            return $maxScore;
+        } else {
+            // MIN (Défenseur veut minimiser)
+            $minScore = PHP_INT_MAX;
+            foreach ($moves as $move) {
+                $boardSim = $this->applyMove($board, $move['from'], $move['to']);
+                $piece = $board[$move['from'][0]][$move['from'][1]];
+                $boardSim = $this->handleCaptures($boardSim, $move['to'][1], $move['to'][0], $piece, $terrain, $boardSize, $rules);
+
+                $score = $this->minimax($boardSim, $depth - 1, true, $alpha, $beta, $boardSize, $terrain, $rules);
+                $minScore = min($minScore, $score);
+                $beta = min($beta, $score);
+                if ($beta <= $alpha) break; // Élagage Alpha
+            }
+            return $minScore;
+        }
+    }
+
+    /**
+     * Applique un mouvement et retourne le nouveau plateau
+     */
+    private function applyMove(array $board, array $from, array $to): array
+    {
+        $piece = $board[$from[0]][$from[1]];
+        $board[$to[0]][$to[1]] = $piece;
+        $board[$from[0]][$from[1]] = self::EMPTY;
+        return $board;
+    }
+
+    /**
+     * Fonction d'évaluation heuristique du plateau
+     * Score positif = avantage pour l'Attaquant
+     * Score négatif = avantage pour le Défenseur
+     * Inspiré du projet Bokhtiar-Adil/Vikings-chess-Hnefatafl
+     */
+    private function evaluateBoard(array $board, int $boardSize, array $terrain): int
+    {
+        $score = 0;
+        $attackerCount = 0;
+        $defenderCount = 0;
+        $kingY = null;
+        $kingX = null;
+        $center = (int)($boardSize / 2);
+        $corners = [[0, 0], [0, $boardSize - 1], [$boardSize - 1, 0], [$boardSize - 1, $boardSize - 1]];
+
+        for ($y = 0; $y < $boardSize; $y++) {
+            for ($x = 0; $x < $boardSize; $x++) {
+                $cell = $board[$y][$x];
+                if ($cell === self::ATTACKER) {
+                    $attackerCount++;
+                } elseif ($cell === self::DEFENDER) {
+                    $defenderCount++;
+                } elseif ($cell === self::KING) {
+                    $kingY = $y;
+                    $kingX = $x;
+                }
+            }
+        }
+
+        // 1. Avantage numérique : chaque pièce vaut 100 points
+        $score += $attackerCount * 100;
+        $score -= $defenderCount * 100;
+
+        // 2. Position du Roi : capital pour les deux camps
+        if ($kingY !== null) {
+            // Distance du Roi au coin le plus proche (perspective Défenseur = min est bon)
+            $minDistToCorner = PHP_INT_MAX;
+            foreach ($corners as [$cY, $cX]) {
+                $dist = abs($kingY - $cY) + abs($kingX - $cX);
+                $minDistToCorner = min($minDistToCorner, $dist);
+            }
+            // Plus le Roi est proche d'un coin, plus c'est bon pour le Défenseur (score négatif)
+            $score -= (10 - $minDistToCorner) * 150;
+
+            // Distance du Roi au centre (plus c'est loin, mieux c'est pour le Défenseur)
+            $distToCenter = abs($kingY - $center) + abs($kingX - $center);
+            $score -= $distToCenter * 50;
+
+            // Encerclement du Roi : compter les attaquants directement adjacents
+            $surroundCount = 0;
+            $directions = [[0, 1], [0, -1], [1, 0], [-1, 0]];
+            foreach ($directions as [$dy, $dx]) {
+                $ny = $kingY + $dy;
+                $nx = $kingX + $dx;
+                if ($ny >= 0 && $ny < $boardSize && $nx >= 0 && $nx < $boardSize) {
+                    if ($board[$ny][$nx] === self::ATTACKER ||
+                        ($terrain[$ny][$nx] ?? self::CELL_NORMAL) === self::CELL_THRONE ||
+                        ($terrain[$ny][$nx] ?? self::CELL_NORMAL) === self::CELL_CORNER) {
+                        $surroundCount++;
+                    }
+                }
+            }
+            // Plus le Roi est encerclé, mieux c'est pour l'Attaquant
+            $score += $surroundCount * 300;
+
+            // Roi sur une ligne ou colonne libre vers un coin = grande menace pour l'Attaquant
+            foreach ($corners as [$cY, $cX]) {
+                if ($kingY === $cY || $kingX === $cX) {
+                    $score -= 500; // Avantage défenseur = score négatif
+                }
+            }
+        }
+
+        return $score;
     }
 }

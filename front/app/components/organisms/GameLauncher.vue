@@ -7,13 +7,13 @@
       </h3>
     </template>
 
-    <div class="space-y-6 py-6 flex-1 flex flex-col justify-center">
+    <div class="space-y-4 py-4 flex-1 flex flex-col justify-center">
       <!-- Matchmaking -->
       <UButton
         size="xl"
         block
         variant="cta"
-        class="group hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 py-5 shadow-md hover:shadow-neutral-700/20"
+        class="group hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 py-5 shadow-md hover:shadow-neutral-700/20 border-none! ring-0!"
         @click="$emit('matchmaking')"
       >
         <div class="flex flex-col items-center">
@@ -31,43 +31,62 @@
       <UButton
         size="xl"
         block
-        class="group hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 py-5 bg-neutral-100 text-neutral-900 hover:bg-neutral-200 border border-neutral-300 shadow-md"
+        class="group hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 py-5 bg-vert-500 text-white hover:bg-vert-600 border-none! ring-0! shadow-md"
         @click="$emit('challenge')"
       >
         <div class="flex flex-col items-center">
-          <span class="flex items-center gap-2 text-lg font-bold text-neutral-800">
-            <UIcon name="i-lucide-users" class="w-5 h-5 group-hover:rotate-12 transition-transform" />
+          <span class="flex items-center gap-2 text-lg font-bold text-white">
+            <UIcon name="i-lucide-users" class="w-5 h-5 group-hover:rotate-12 transition-transform text-vert-200" />
             Défier un Ami
           </span>
-          <span class="text-xs text-neutral-500 font-normal mt-1 normal-case tracking-wide">
+          <span class="text-xs text-vert-100 font-normal mt-1 normal-case tracking-wide">
             Envoyer un traité de guerre à un membre du clan
           </span>
         </div>
       </UButton>
 
-      <!-- Play against Bot (Disabled) -->
-      <div class="relative group">
-        <UButton
-          size="xl"
-          block
-          disabled
-          class="py-5 opacity-40 bg-neutral-100 text-neutral-500 border border-neutral-200 cursor-not-allowed w-full"
-        >
-          <div class="flex flex-col items-center">
-            <span class="flex items-center gap-2 text-lg font-bold">
-              <UIcon name="i-lucide-cpu" class="w-5 h-5" />
-              Entraînement d'Odin
-            </span>
-            <span class="text-xs font-normal mt-1 normal-case tracking-wide">
-              Affronter l'IA (Prochainement)
-            </span>
-          </div>
-        </UButton>
-        <div 
-          @click="$emit('bot-warning')"
-          class="absolute inset-0 cursor-pointer"
-        />
+      <!-- Séparateur Bot -->
+      <div class="flex items-center gap-2 pt-1">
+        <div class="flex-1 h-px bg-neutral-200" />
+        <span class="text-xs text-neutral-400 font-medium uppercase tracking-widest">Entraînement</span>
+        <div class="flex-1 h-px bg-neutral-200" />
       </div>
+
+      <!-- Bot Novice (Facile) -->
+      <UButton
+        size="xl"
+        block
+        class="group hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 py-4 bg-vert-200 text-vert-900 hover:bg-vert-300 border-none! ring-0! shadow-md w-full"
+        @click="$emit('play-easy-bot')"
+      >
+        <div class="flex flex-col items-center">
+          <span class="flex items-center gap-2 text-base font-bold text-vert-900">
+            <UIcon name="i-lucide-shield" class="w-5 h-5 group-hover:animate-pulse text-vert-700" />
+            Novice d'Yggdrasil
+          </span>
+          <span class="text-xs text-vert-700 font-normal mt-0.5 normal-case tracking-wide">
+            Bot débutant — idéal pour apprendre (Elo : 400)
+          </span>
+        </div>
+      </UButton>
+
+      <!-- Bot Odin (Difficile) -->
+      <UButton
+        size="xl"
+        block
+        class="group hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 py-4 bg-vert-700 text-white hover:bg-vert-800 border-none! ring-0! shadow-md w-full"
+        @click="$emit('play-bot')"
+      >
+        <div class="flex flex-col items-center">
+          <span class="flex items-center gap-2 text-base font-bold text-white">
+            <UIcon name="i-lucide-cpu" class="w-5 h-5 group-hover:rotate-12 transition-transform text-vert-200" />
+            Odin — L'Œil du Corbeau
+          </span>
+          <span class="text-xs text-vert-300 font-normal mt-0.5 normal-case tracking-wide">
+            Bot Minimax redoutable — pour guerriers aguerris (Elo : 1400)
+          </span>
+        </div>
+      </UButton>
     </div>
 
     <template #footer>
@@ -89,6 +108,7 @@ defineProps<{
 defineEmits<{
   (e: 'matchmaking'): void
   (e: 'challenge'): void
-  (e: 'bot-warning'): void
+  (e: 'play-bot'): void
+  (e: 'play-easy-bot'): void
 }>()
 </script>

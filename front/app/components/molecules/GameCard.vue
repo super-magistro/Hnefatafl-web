@@ -73,22 +73,55 @@ const emit = defineEmits<{
 
 const isCopied = ref(false)
 
+// Helper pour extraire l'ID utilisateur
+const getUserId = (userOrIri: any): number | null => {
+  if (!userOrIri) return null
+  if (typeof userOrIri === 'number') return userOrIri
+  if (typeof userOrIri === 'string') {
+    if (userOrIri === '/me' || userOrIri.endsWith('/me')) {
+      return props.currentUserId ? getUserId(props.currentUserId) : null
+    }
+    const match = userOrIri.match(/\/users\/(\d+)/)
+    return match ? Number(match[1]) : null
+  }
+  if (userOrIri.id) return Number(userOrIri.id)
+  if (userOrIri['@id']) {
+    const match = userOrIri['@id'].match(/\/users\/(\d+)/)
+    return match ? Number(match[1]) : null
+  }
+  return null
+}
+
+const currentUserIdVal = computed<number | null>(() => {
+  return getUserId(props.currentUserId)
+})
+
 // Helper to fetch user data from the global userMap (same logic as in page)
 const { getUserByIri } = useUserMap()
 
-const attackerName = computed(() =>
-  props.game.attacker ? getUserByIri(props.game.attacker).email.split('@')[0] : 'En attente...'
-)
-const defenderName = computed(() =>
-  props.game.defender ? getUserByIri(props.game.defender).email.split('@')[0] : 'En attente...'
-)
-const attackerElo = computed(() => (props.game.attacker ? getUserByIri(props.game.attacker).elo : null))
-const defenderElo = computed(() => (props.game.defender ? getUserByIri(props.game.defender).elo : null))
+const attackerName = computed(() => {
+  const id = getUserId(props.game.attacker)
+  return id ? getUserByIri(`/api/users/${id}`).email.split('@')[0] : 'En attente...'
+})
+const defenderName = computed(() => {
+  const id = getUserId(props.game.defender)
+  return id ? getUserByIri(`/api/users/${id}`).email.split('@')[0] : 'En attente...'
+})
+const attackerElo = computed(() => {
+  const id = getUserId(props.game.attacker)
+  return id ? getUserByIri(`/api/users/${id}`).elo : null
+})
+const defenderElo = computed(() => {
+  const id = getUserId(props.game.defender)
+  return id ? getUserByIri(`/api/users/${id}`).elo : null
+})
 
 const isMyTurn = computed(() => {
   const movesCount = props.game.moves ? props.game.moves.length : 0
   const isAttackerTurn = movesCount % 2 === 0
-  return isAttackerTurn ? props.game.attacker === props.currentUserId : props.game.defender === props.currentUserId
+  const attackerId = getUserId(props.game.attacker)
+  const defenderId = getUserId(props.game.defender)
+  return isAttackerTurn ? attackerId === currentUserIdVal.value : defenderId === currentUserIdVal.value
 })
 
 const turnLabel = computed(() => (isMyTurn.value ? "À VOUS DE JOUER" : "Attente de l'adversaire"))

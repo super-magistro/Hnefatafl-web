@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { copyToClipboard } from '@/utils/clipboard'
 
 definePageMeta({
   layout: 'authenticated'
@@ -7,6 +8,34 @@ definePageMeta({
 const route = useRoute()
 const { apiFetch } = useApi()
 const { user: currentUser, fetchMe } = useMe()
+
+// Helper pour extraire l'ID utilisateur
+const getUserId = (userOrIri: any): number | null => {
+  if (!userOrIri) return null
+  if (typeof userOrIri === 'number') return userOrIri
+  if (typeof userOrIri === 'string') {
+    if (userOrIri === '/me' || userOrIri.endsWith('/me')) {
+      if (currentUser.value && currentUser.value.id) {
+        return Number(currentUser.value.id)
+      }
+    }
+    const match = userOrIri.match(/\/users\/(\d+)/)
+    return match ? Number(match[1]) : null
+  }
+  if (userOrIri.id) return Number(userOrIri.id)
+  if (userOrIri['@id']) {
+    const match = userOrIri['@id'].match(/\/users\/(\d+)/)
+    return match ? Number(match[1]) : null
+  }
+  return null
+}
+
+// Helper pour extraire l'IRI d'une entité ou d'une chaîne
+const getIri = (userOrIri: any): string | null => {
+  if (!userOrIri) return null
+  if (typeof userOrIri === 'string') return userOrIri
+  return userOrIri['@id'] || (userOrIri.id ? `/api/users/${userOrIri.id}` : null)
+}
 
 // Données réactives
 const game = ref<any>(null)
@@ -23,21 +52,20 @@ const validMoves = ref<[number, number][]>([])
 // Polling pour récupérer les nouveaux coups de l'adversaire
 let pollingInterval: any = null
 
-const currentUserId = computed<string | null>(() => {
-  if (!currentUser.value) return null
-  return currentUser.value['@id'] || (currentUser.value.id ? `/api/users/${currentUser.value.id}` : null)
+const currentUserIdVal = computed<number | null>(() => {
+  return currentUser.value?.id ? Number(currentUser.value.id) : null
 })
 
 // Rejoindre la partie en tant que second joueur
 const joinGame = async (role: 'attacker' | 'defender') => {
-  if (!currentUserId.value) {
+  if (!currentUserIdVal.value) {
     errorMessage.value = "Impossible de rejoindre la partie : utilisateur non connecté."
     return
   }
   isActionLoading.value = true
   try {
     const payload = {
-      [role]: currentUserId.value,
+      [role]: `/api/users/${currentUserIdVal.value}`,
       status: 'PLAYING'
     }
     game.value = await apiFetch(`/games/${route.params.id}`, {
@@ -48,12 +76,13 @@ const joinGame = async (role: 'attacker' | 'defender') => {
       body: payload
     })
     
-    if (game.value.gameBoard) {
-      boardDetails.value = await apiFetch(game.value.gameBoard)
+    const boardIri = getIri(game.value.gameBoard)
+    if (boardIri) {
+      boardDetails.value = await apiFetch(boardIri)
     }
-    const opponentIri = role === 'attacker' ? game.value.defender : game.value.attacker
-    if (opponentIri) {
-      opponentUser.value = await apiFetch(opponentIri)
+    const opponentId = role === 'attacker' ? getUserId(game.value.defender) : getUserId(game.value.attacker)
+    if (opponentId) {
+      opponentUser.value = await apiFetch(`/users/${opponentId}`)
     }
   } catch (err: any) {
     console.error('Erreur de ralliement de la partie:', err)
@@ -70,14 +99,17 @@ const loadGame = async (showLoader = false) => {
   try {
     game.value = await apiFetch(`/games/${route.params.id}`)
 
+    const attackerId = getUserId(game.value.attacker)
+    const defenderId = getUserId(game.value.defender)
+
     // Rejoindre automatiquement si la partie est PENDING et qu'une place est libre
     if (game.value.status === 'PENDING') {
-      const isCreator = game.value.attacker === currentUserId.value || game.value.defender === currentUserId.value
+      const isCreator = attackerId === currentUserIdVal.value || defenderId === currentUserIdVal.value
       if (!isCreator) {
-        if (!game.value.attacker) {
+        if (!attackerId) {
           await joinGame('attacker')
           return
-        } else if (!game.value.defender) {
+        } else if (!defenderId) {
           await joinGame('defender')
           return
         }
@@ -85,17 +117,18 @@ const loadGame = async (showLoader = false) => {
     }
 
     // Charger les détails du plateau (variante) si pas encore fait
-    if (!boardDetails.value && game.value.gameBoard) {
-      boardDetails.value = await apiFetch(game.value.gameBoard)
+    const boardIri = getIri(game.value.gameBoard)
+    if (!boardDetails.value && boardIri) {
+      boardDetails.value = await apiFetch(boardIri)
     }
 
     // Déterminer l'adversaire
-    const opponentIri = game.value.attacker === currentUserId.value 
-      ? game.value.defender 
-      : game.value.attacker
+    const opponentId = attackerId === currentUserIdVal.value 
+      ? defenderId 
+      : attackerId
     
-    if (opponentIri && (!opponentUser.value || opponentUser.value['@id'] !== opponentIri)) {
-      opponentUser.value = await apiFetch(opponentIri)
+    if (opponentId && (!opponentUser.value || opponentUser.value.id !== opponentId)) {
+      opponentUser.value = await apiFetch(`/users/${opponentId}`)
     }
   } catch (err: any) {
     console.error('Erreur lors du chargement de la partie:', err)
@@ -151,25 +184,23 @@ const isMyTurn = computed(() => {
   if (!game.value || (game.value.status !== 'PLAYING' && game.value.status !== 'PENDING')) return false
   const movesCount = game.value.moves ? game.value.moves.length : 0
   const isAttackerTurn = movesCount % 2 === 0
+  const attackerId = getUserId(game.value.attacker)
+  const defenderId = getUserId(game.value.defender)
   return isAttackerTurn
-    ? game.value.attacker === currentUserId.value
-    : game.value.defender === currentUserId.value
+    ? attackerId === currentUserIdVal.value
+    : defenderId === currentUserIdVal.value
 })
 
 const winnerName = computed(() => {
   if (!game.value || !game.value.winner) return ''
   
-  const winnerIri = game.value.winner
+  const winnerId = getUserId(game.value.winner)
   
-  if (typeof winnerIri === 'object' && (winnerIri as any).email) {
-    return (winnerIri as any).email.split('@')[0]
-  }
-  
-  if (winnerIri === currentUserId.value) {
+  if (winnerId === currentUserIdVal.value) {
     return currentUser.value?.email?.split('@')[0] || 'Vous'
   }
   
-  if (opponentUser.value && (winnerIri === opponentUser.value['@id'] || winnerIri === opponentUser.value.id || String(opponentUser.value.id) === String(winnerIri).split('/').pop())) {
+  if (opponentUser.value && winnerId === opponentUser.value.id) {
     return opponentUser.value?.email?.split('@')[0] || 'Adversaire'
   }
   
@@ -178,7 +209,7 @@ const winnerName = computed(() => {
 
 const myRole = computed(() => {
   if (!game.value) return null
-  return game.value.attacker === currentUserId.value ? 'attacker' : 'defender'
+  return getUserId(game.value.attacker) === currentUserIdVal.value ? 'attacker' : 'defender'
 })
 
 // Logique du gameplay
@@ -218,7 +249,7 @@ const playMove = async (fromY: number, fromX: number, toY: number, toX: number) 
   isActionLoading.value = true
   errorMessage.value = null
   try {
-    game.value = await apiFetch(`/games/${game.value.id}/move`, {
+    game.value = await apiFetch(`/games/${game.value.id}/play`, {
       method: 'POST',
       body: {
         from: [fromY, fromX],
@@ -343,7 +374,7 @@ const sendChatMessage = async (text: string) => {
     <div class="flex items-center justify-between py-2 shrink-0">
       <UButton
           to="/games"
-          variant="Link"
+          variant="link"
           icon="i-lucide-arrow-left"
           class="text-pine-cone-600 font-bold"
       >

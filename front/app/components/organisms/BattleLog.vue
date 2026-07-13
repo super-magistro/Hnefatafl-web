@@ -97,4 +97,16 @@ defineEmits<{
   (e: 'resign'): void
 }>()
 
+const getMoveLabel = (move: any) => {
+  if (!move) return ''
+  if (typeof move === 'string') return move
+  if (move.notation) {
+    // Traduire le message si possible ou le retourner
+    return move.notation.replace('Move from', 'Déplacement de').replace('to', 'vers')
+  }
+  if (move.from && move.to) {
+    return `Déplacement de [${move.from.join(',')}] vers [${move.to.join(',')}]`
+  }
+  return 'Coup joué'
+}
 </script>

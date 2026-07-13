@@ -25,6 +25,7 @@ use Doctrine\ORM\Mapping as ORM;
         ),
         new Post(
             uriTemplate: '/games',
+            processor: \App\State\GameCreateProcessor::class,
             description: 'Créer une partie',
         ),
         new Patch(
