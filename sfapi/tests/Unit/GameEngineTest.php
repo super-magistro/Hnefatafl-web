@@ -2,6 +2,7 @@
 
 namespace App\Tests\Unit;
 
+use App\Bot\GameBoardHelper;
 use App\Entity\Game;
 use App\Entity\GameBoard;
 use App\Entity\User;
@@ -14,7 +15,7 @@ class GameEngineTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->engine = new GameEngine();
+        $this->engine = new GameEngine(new GameBoardHelper());
     }
 
     public function testMovePieceValid(): void
