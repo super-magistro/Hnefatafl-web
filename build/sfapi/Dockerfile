@@ -13,6 +13,10 @@ RUN apk add --no-cache acl fcgi file gettext git gnu-libiconv \
 # Installation de Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
+# Copie et configuration du script d'entrée (entrypoint)
+COPY ./build/sfapi/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
 # Gestion de l'utilisateur (Match l'ID de votre machine hôte)
 RUN addgroup -g $GROUP_ID $GROUP_NAME && \
     adduser -u $USER_ID -G $GROUP_NAME -D $USER_NAME
@@ -20,3 +24,6 @@ RUN addgroup -g $GROUP_ID $GROUP_NAME && \
 USER $USER_NAME
 
 WORKDIR /app/sfapi
+
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
+CMD ["php-fpm"]
