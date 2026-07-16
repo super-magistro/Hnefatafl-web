@@ -64,8 +64,4 @@
     --color-spring-wood-950: #2e221c;
 }
 
-@layer utilities {
-    .flex-center {
-        @apply flex justify-center items-center;
-    }
-}
+

@@ -10,28 +10,41 @@
     <UTabs
       v-model="activeTab"
       :items="[
-        { label: 'Connexion' },
-        { label: 'Inscription' }
+        { value: 'login', label: 'Connexion' },
+        { value: 'register', label: 'Inscription' }
       ]"
       class="mb-8"
     />
 
     <form @submit.prevent="handleSubmit" class="space-y-5">
 
-      <div>
-        <AtomsInput v-model="email" label="Email" type="email" placeholder="viking@valhalla.com" />
-        <p v-if="errors.email" class="mt-1 text-sm text-error-500">{{ errors.email }}</p>
-      </div>
+      <UFormField label="Email" :error="errors.email" class="w-full">
+        <UInput
+          v-model="email"
+          type="email"
+          placeholder="viking@valhalla.com"
+          size="lg"
+          class="w-full"
+        />
+      </UFormField>
 
-      <div>
-        <AtomsInput v-model="password" label="Mot de passe" type="password" />
-        <p v-if="errors.password" class="mt-1 text-sm text-error-500">{{ errors.password }}</p>
-      </div>
+      <UFormField label="Mot de passe" :error="errors.password" class="w-full">
+        <UInput
+          v-model="password"
+          type="password"
+          size="lg"
+          class="w-full"
+        />
+      </UFormField>
 
-      <div v-if="!isLoginMode">
-        <AtomsInput v-model="confirmPassword" label="Confirmer le mot de passe" type="password" />
-        <p v-if="errors.confirm" class="mt-1 text-sm text-error-500">{{ errors.confirm }}</p>
-      </div>
+      <UFormField v-if="!isLoginMode" label="Confirmer le mot de passe" :error="errors.confirm" class="w-full">
+        <UInput
+          v-model="confirmPassword"
+          type="password"
+          size="lg"
+          class="w-full"
+        />
+      </UFormField>
 
       <UAlert
           v-if="errors.general"
@@ -67,11 +80,8 @@
 import { ref, computed } from 'vue'
 import validator from 'validator';
 
-const activeTab = ref(0)
-const isLoginMode = computed({
-  get: () => activeTab.value === 0,
-  set: (val) => { activeTab.value = val ? 0 : 1 }
-})
+const activeTab = ref('login')
+const isLoginMode = computed(() => activeTab.value === 'login')
 const email = ref('')
 const password = ref('')
 const confirmPassword = ref('')

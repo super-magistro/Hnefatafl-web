@@ -63,7 +63,7 @@
 </template>
 
 <script setup lang="ts">
-import type { Game, User } from '../../game-types'
+import type { Game } from '@/game-types'
 import { copyToClipboard } from '@/utils/clipboard'
 const props = defineProps<{ game: Game; currentUserId: string | null }>()
 
@@ -78,8 +78,9 @@ const getUserId = (userOrIri: any): number | null => {
   if (!userOrIri) return null
   if (typeof userOrIri === 'number') return userOrIri
   if (typeof userOrIri === 'string') {
-    if (userOrIri === '/me' || userOrIri.endsWith('/me')) {
-      return props.currentUserId ? getUserId(props.currentUserId) : null
+    if (userOrIri === '/me' || userOrIri.endsWith('/me') || userOrIri === '/api/me') {
+      const { user } = useMe()
+      return user.value?.id ? Number(user.value.id) : null
     }
     const match = userOrIri.match(/\/users\/(\d+)/)
     return match ? Number(match[1]) : null
@@ -101,11 +102,11 @@ const { getUserByIri } = useUserMap()
 
 const attackerName = computed(() => {
   const id = getUserId(props.game.attacker)
-  return id ? getUserByIri(`/api/users/${id}`).email.split('@')[0] : 'En attente...'
+  return id ? (getUserByIri(`/api/users/${id}`).email?.split('@')[0] ?? 'En attente...') : 'En attente...'
 })
 const defenderName = computed(() => {
   const id = getUserId(props.game.defender)
-  return id ? getUserByIri(`/api/users/${id}`).email.split('@')[0] : 'En attente...'
+  return id ? (getUserByIri(`/api/users/${id}`).email?.split('@')[0] ?? 'En attente...') : 'En attente...'
 })
 const attackerElo = computed(() => {
   const id = getUserId(props.game.attacker)

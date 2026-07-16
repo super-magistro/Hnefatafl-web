@@ -10,7 +10,7 @@ const randomQuote = useState('viking-quote', () => {
 </script>
 
 <template>
-  <div class="h-screen flex flex-col items-center justify-center bg-neutral-100 p-6 text-center">
+  <div class="w-full h-full min-h-[400px] flex flex-col items-center justify-center bg-neutral-100 p-6 text-center">
 
     <UIcon name="i-lucide-loader-2" class="w-12 h-12 animate-spin text-primary-700 mb-8" />
 

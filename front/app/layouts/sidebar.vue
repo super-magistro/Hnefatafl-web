@@ -21,7 +21,7 @@ onMounted(() => {
       <!-- Sous-conteneur overflow-hidden pour cacher la sidebar lors du repliage -->
       <div class="w-full h-full overflow-hidden">
         <OrganismsAppSidebar 
-          v-show="!isCollapsed" 
+          v-if="!isCollapsed" 
           class="w-64 h-full"
         />
       </div>

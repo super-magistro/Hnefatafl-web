@@ -14,7 +14,7 @@ const getUserId = (userOrIri: any): number | null => {
   if (!userOrIri) return null
   if (typeof userOrIri === 'number') return userOrIri
   if (typeof userOrIri === 'string') {
-    if (userOrIri === '/me' || userOrIri.endsWith('/me')) {
+    if (userOrIri === '/me' || userOrIri.endsWith('/me') || userOrIri === '/api/me') {
       if (currentUser.value && currentUser.value.id) {
         return Number(currentUser.value.id)
       }
@@ -400,7 +400,7 @@ const sendChatMessage = async (text: string) => {
     />
 
     <!-- Vue principale de la partie -->
-    <div v-if="game && boardDetails" class="grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 min-h-0 overflow-y-auto lg:overflow-hidden mb-4">
+    <div v-else-if="game && boardDetails" class="grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 min-h-0 overflow-y-auto lg:overflow-hidden mb-4">
       
       <!-- Colonne Plateau (8/12) -->
       <div class="lg:col-span-8 flex flex-col items-center justify-between h-auto lg:h-full min-h-0">

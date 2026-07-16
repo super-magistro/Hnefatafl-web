@@ -1,11 +1,11 @@
 // composables/useUserMap.ts
 import { computed, ref } from 'vue'
-import type { User } from '../game-types'
+import type { User } from '@/game-types'
 import { useMe } from '@/composables/Me'
 
 export function useUserMap() {
   const { user: currentUser, fetchMe } = useMe()
-  const users = ref<User[]>([])
+  const users = useState<User[]>('global-users-map', () => [])
   // In pages we already have a users ref, but this composable can accept it via parameter.
   // For simplicity, we will expose a setter.
   const setUsers = (list: User[]) => {

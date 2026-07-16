@@ -2,6 +2,7 @@
 import TabBar from '@/components/atoms/TabBar.vue'
 import GameList from '@/components/organisms/GameList.vue'
 import { useUserMap } from '@/composables/useUserMap'
+import { translateBoardRules } from '@/utils/boardRules'
 
 definePageMeta({
   layout: 'authenticated'
@@ -122,6 +123,10 @@ const loadData = async () => {
 }
 
 onMounted(() => {
+  const sidebarCollapsed = useState('sidebarCollapsed')
+  if (sidebarCollapsed.value !== undefined) {
+    sidebarCollapsed.value = false
+  }
   loadData()
 })
 

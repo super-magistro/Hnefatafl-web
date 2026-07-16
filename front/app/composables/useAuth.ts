@@ -12,7 +12,10 @@ export const useAuth = () => {
         try {
 
             // Appel à Symfony
-            const response = await $fetch(`${config.public.apiBase}/login_check`, {
+            const loginUrl = config.public.apiBase.endsWith('/') 
+                ? `${config.public.apiBase}login_check` 
+                : `${config.public.apiBase}/login_check`
+            const response = await $fetch(loginUrl, {
                 method: 'POST',
                 body: {
                     "email": email,

@@ -16,7 +16,7 @@
 </template>
 
 <script setup lang="ts">
-import type { Game } from '../../game-types'
+import type { Game } from '@/game-types'
 import GameCard from '@/components/molecules/GameCard.vue'
 
 const props = defineProps<{ games: Game[]; currentUserId: string | null }>()

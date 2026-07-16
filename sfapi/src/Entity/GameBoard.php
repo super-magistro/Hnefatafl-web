@@ -21,15 +21,18 @@ use Doctrine\ORM\Mapping as ORM;
         new GetCollection(
             uriTemplate: '/game_boards',
             description: 'Lister les variantes disponibles',
+            security: SecureRules::PUBLIC_ACCESS
         ),
         new Get(
             uriTemplate: '/game_boards/{id}',
             description: 'Récupérer les layouts initiaux et dessiner le plateau',
+            security: SecureRules::PUBLIC_ACCESS
         ),
 
         // --- ADMINISTRATION (Création de variantes) ---
         new Post(
             uriTemplate: '/game_boards',
+            description: 'Créer une nouvelle variante de plateau',
             security: SecureRules::ADMIN_ONLY,
             securityMessage: SecureRules::MSG_ADMIN_ONLY
         ),
@@ -43,9 +46,7 @@ use Doctrine\ORM\Mapping as ORM;
             security: SecureRules::ADMIN_ONLY,
             securityMessage: SecureRules::MSG_ADMIN_ONLY
         ),
-    ],
-    security: SecureRules::USER_READ,
-    securityMessage: SecureRules::MSG_USER_READ
+    ]
 )]
 class GameBoard
 {
