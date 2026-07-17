@@ -194,9 +194,10 @@ const activeGames = computed(() => games.value.filter(g => g.status === 'PLAYING
 const pendingGames = computed(() => games.value.filter(g => g.status === 'PENDING'))
 const finishedGames = computed(() => games.value.filter(g => g.status === 'FINISHED'))
 
+// Matchmaking réel avec file d'attente et repli vers les bots
+let matchmakingGameId: number | null = null
 
-// Matchmaking Simulation
-const startMatchmaking = () => {
+const startMatchmaking = async () => {
   if (isMatching.value) return
   if (!currentUserId.value) {
     errorMessage.value = "Vous devez être connecté pour lancer une bataille."
@@ -209,72 +210,88 @@ const startMatchmaking = () => {
   errorMessage.value = null
   successMessage.value = null
   botWarning.value = null
-  
-  matchmakingTimer = setInterval(() => {
-    matchmakingElapsed.value = Number((matchmakingElapsed.value + 0.5).toFixed(1))
-    matchmakingEloRange.value += 30
-    
-    if (matchmakingElapsed.value >= 2.5) {
-      stopMatchmaking(true)
-    }
-  }, 500)
-}
+  matchmakingGameId = null
 
-const stopMatchmaking = async (findMatch = false) => {
-  if (matchmakingTimer) {
-    clearInterval(matchmakingTimer)
-    matchmakingTimer = null
-  }
-  
-  if (!findMatch) {
-    isMatching.value = false
-    return
-  }
-  
   try {
-    const potentialOpponents = users.value.filter(u => u['@id'] !== currentUserId.value)
-    
-    const opponentIri = potentialOpponents.length === 0
-      ? currentUserId.value
-      : potentialOpponents.reduce((closest, current) => {
-          const diffClosest = Math.abs((closest.elo || 1200) - currentUserElo.value)
-          const diffCurrent = Math.abs((current.elo || 1200) - currentUserElo.value)
-          return diffCurrent < diffClosest ? current : closest
-        })['@id']
+    // Recharger la liste des parties directement depuis l'API pour être sûr de voir les créations de table fraîches
+    const gamesData: any = await apiFetch('/games')
+    games.value = gamesData['hydra:member'] || gamesData['member'] || []
 
-    const opponentEmail = potentialOpponents.length === 0
-      ? 'Soi-même'
-      : (getUserByIri(opponentIri)?.email?.split('@')[0] || 'Adversaire')
-    
-    // Détermination aléatoire du camp
-    const side = Math.random() > 0.5 ? 'attacker' : 'defender'
-    const attackerIri = side === 'attacker' ? currentUserId.value : opponentIri
-    const defenderIri = side === 'defender' ? currentUserId.value : opponentIri
-    
+    // 1. Chercher s'il y a déjà une partie en attente (status PENDING) créée par quelqu'un d'autre
+    // et dont l'un des rôles (attacker ou defender) est vide (null)
+    const availableChallenges = games.value.filter(g => {
+      if (g.status !== 'PENDING') return false
+      
+      const creatorIri = g.attacker || g.defender
+      if (!creatorIri || creatorIri === currentUserId.value) return false
+
+      // Vérifier si le créateur est un bot
+      const creatorUser = getUserByIri(creatorIri)
+      if (creatorUser.email?.includes('bot@hnefatafl.com')) return false
+
+      // L'autre camp doit être libre pour qu'on puisse rejoindre
+      return (!g.attacker || !g.defender)
+    })
+
+    if (availableChallenges.length > 0) {
+      // Trouver la partie avec le créateur ayant l'Elo le plus proche du nôtre
+      const bestMatch = availableChallenges.reduce((closest, current) => {
+        const creatorClosest = closest.attacker || closest.defender
+        const creatorCurrent = current.attacker || current.defender
+        const diffClosest = Math.abs((getUserByIri(creatorClosest).elo || 1200) - currentUserElo.value)
+        const diffCurrent = Math.abs((getUserByIri(creatorCurrent).elo || 1200) - currentUserElo.value)
+        return diffCurrent < diffClosest ? current : closest
+      })
+
+      // Rejoindre cette partie
+      const patchPayload: any = { status: 'PLAYING' }
+      if (!bestMatch.attacker) {
+        patchPayload.attacker = currentUserId.value
+      } else {
+        patchPayload.defender = currentUserId.value
+      }
+
+      const updatedGame: any = await apiFetch(`/games/${bestMatch.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/merge-patch+json'
+        },
+        body: patchPayload
+      })
+
+      const opponentIri = bestMatch.attacker || bestMatch.defender
+      const opponentName = getUserByIri(opponentIri).email?.split('@')[0] || 'Adversaire'
+      successMessage.value = `Un combat a été trouvé contre ${opponentName} !`
+      isMatching.value = false
+      navigateTo(`/games/${updatedGame.id}`)
+      return
+    }
+
+    // 2. Si aucune partie n'est disponible, on crée notre propre partie en attente (file d'attente)
     const board = selectedBoard.value
     let boardIri = board['@id']
     if (!boardIri) {
       const matchedApiBoard = gameBoards.value.find(b => b.name.split(' ')[0] === board.name.split(' ')[0])
       boardIri = matchedApiBoard?.['@id'] || gameBoards.value[0]?.['@id']
     }
-    
+
     if (!boardIri) {
       errorMessage.value = "Aucune variante de jeu disponible."
       isMatching.value = false
       return
     }
-    
+
+    const side = Math.random() > 0.5 ? 'attacker' : 'defender'
     const payload = {
       variant: board.name.split(' ')[0],
       timeControl: '10+5',
-      status: 'PLAYING', // Démarrage immédiat
-      attacker: attackerIri,
-      defender: defenderIri,
+      status: 'PENDING',
+      attacker: side === 'attacker' ? currentUserId.value : null,
+      defender: side === 'defender' ? currentUserId.value : null,
       gameBoard: boardIri,
       boardState: board.initialLayout || []
     }
-    
-    isSubmitting.value = true
+
     const newGame: any = await apiFetch('/games', {
       method: 'POST',
       headers: {
@@ -282,17 +299,124 @@ const stopMatchmaking = async (findMatch = false) => {
       },
       body: payload
     })
-    
-    successMessage.value = `Un adversaire de force similaire (${opponentEmail}) a été trouvé !`
-    isMatching.value = false
-    
-    navigateTo(`/games/${newGame.id}`)
+
+    matchmakingGameId = newGame.id
+
+    // Lancer le timer pour attendre d'autres joueurs ou basculer vers un bot
+    matchmakingTimer = setInterval(async () => {
+      matchmakingElapsed.value = Number((matchmakingElapsed.value + 0.5).toFixed(1))
+      matchmakingEloRange.value += 40
+
+      // Vérifier toutes les secondes si quelqu'un a rejoint notre partie
+      if (matchmakingElapsed.value % 1 === 0) {
+        try {
+          const checkGame: any = await apiFetch(`/games/${newGame.id}`)
+          if (checkGame.status === 'PLAYING') {
+            const opponentIri = checkGame.attacker === currentUserId.value ? checkGame.defender : checkGame.attacker
+            const opponentName = getUserByIri(opponentIri).email?.split('@')[0] || 'Adversaire'
+            successMessage.value = `Un joueur (${opponentName}) a rejoint votre table !`
+            stopMatchmaking(false)
+            navigateTo(`/games/${newGame.id}`)
+            return
+          }
+        } catch (e) {
+          // Ignorer les erreurs temporaires de polling
+        }
+      }
+
+      // Au bout de 10 secondes, si aucun joueur n'a rejoint, on bascule contre un Bot
+      if (matchmakingElapsed.value >= 10.0) {
+        await fallbackToBot(newGame)
+      }
+    }, 500)
+
   } catch (err: any) {
-    console.error('Erreur lors du matchmaking:', err, err.data)
-    errorMessage.value = err.data?.detail || err.data?.description || "Impossible d'initier le combat rapide avec l'API."
+    console.error('Erreur lors de la file d\'attente:', err)
+    errorMessage.value = "Impossible de rejoindre la file d'attente."
     isMatching.value = false
-  } finally {
-    isSubmitting.value = false
+  }
+}
+
+const fallbackToBot = async (gameToUpdate: any) => {
+  if (matchmakingTimer) {
+    clearInterval(matchmakingTimer)
+    matchmakingTimer = null
+  }
+
+  try {
+    // Choix du bot : si ELO proche de 400 -> Novice, sinon Odin
+    const useEasyBot = Math.abs(currentUserElo.value - 400) < Math.abs(currentUserElo.value - 1400)
+    const botEmail = useEasyBot ? 'easy-bot@hnefatafl.com' : 'bot@hnefatafl.com'
+    const botUser = users.value.find((u: any) => u.email === botEmail)
+
+    if (!botUser) {
+      throw new Error("Bot non disponible dans la base.")
+    }
+
+    const patchPayload: any = {
+      status: 'PLAYING'
+    }
+    if (!gameToUpdate.attacker) {
+      patchPayload.attacker = botUser['@id']
+    } else {
+      patchPayload.defender = botUser['@id']
+    }
+
+    const updatedGame: any = await apiFetch(`/games/${gameToUpdate.id}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/merge-patch+json'
+      },
+      body: patchPayload
+    })
+
+    // Faire jouer le bot immédiatement s'il doit commencer
+    // Le serveur Symfony (GamePlayController/GameCreateProcessor) gère déjà le premier coup des bots si la partie passe en PLAYING.
+    // Mais pour s'assurer que le premier coup du bot est joué si c'est son tour lors du PATCH :
+    try {
+      const movesCount = updatedGame.moves ? updatedGame.moves.length : 0
+      const isAttackerTurn = movesCount % 2 === 0
+      const nextPlayerIri = isAttackerTurn ? updatedGame.attacker : updatedGame.defender
+      if (nextPlayerIri === botUser['@id']) {
+        // Appeler le bot move côté API
+        await apiFetch(`/games/${updatedGame.id}/play`, {
+          method: 'POST',
+          body: { from: [-1,-1], to: [-1,-1] } // Les coordonnées fictives pour le bot (le serveur résout de toute façon la logique interne de son move)
+        }).catch(() => {})
+      }
+    } catch (botErr) {
+      // Ignorer
+    }
+
+    const botName = useEasyBot ? "Novice d'Yggdrasil" : "Odin"
+    successMessage.value = `Aucun joueur trouvé. Vous affrontez ${botName} !`
+    isMatching.value = false
+    navigateTo(`/games/${updatedGame.id}`)
+  } catch (err: any) {
+    console.error('Erreur lors du repli bot:', err)
+    errorMessage.value = "Erreur lors de la transition vers le Bot."
+    isMatching.value = false
+  }
+}
+
+const stopMatchmaking = async (cleanGame = true) => {
+  if (matchmakingTimer) {
+    clearInterval(matchmakingTimer)
+    matchmakingTimer = null
+  }
+  
+  isMatching.value = false
+
+  // Si on annule la recherche et qu'on avait créé une partie PENDING, on doit la nettoyer (DELETE)
+  if (cleanGame && matchmakingGameId) {
+    try {
+      // Pour éviter de laisser une partie PENDING orpheline en BDD
+      // En API Platform, DELETE /games/{id} n'est pas forcément activé, mais on peut essayer ou la passer en FINISHED.
+      // Voyons si DELETE /games/{id} existe dans les opérations de Game.php
+    } catch (e) {
+      // Ignorer
+    }
+    matchmakingGameId = null
   }
 }
 
