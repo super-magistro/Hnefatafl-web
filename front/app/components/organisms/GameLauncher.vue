@@ -65,7 +65,7 @@
             Novice d'Yggdrasil
           </span>
           <span class="text-xs text-vert-700 font-normal mt-0.5 normal-case tracking-wide">
-            Bot débutant — idéal pour apprendre (Elo : 400)
+            Bot débutant — idéal pour apprendre (Elo : {{ easyBotElo }})
           </span>
         </div>
       </UButton>
@@ -83,7 +83,7 @@
             Odin — L'Œil du Corbeau
           </span>
           <span class="text-xs text-vert-300 font-normal mt-0.5 normal-case tracking-wide">
-            Bot Minimax redoutable — pour guerriers aguerris (Elo : 1400)
+            Bot Minimax redoutable — pour guerriers aguerris (Elo : {{ botElo }})
           </span>
         </div>
       </UButton>
@@ -103,6 +103,8 @@
 <script setup lang="ts">
 defineProps<{
   userElo: number
+  botElo?: number
+  easyBotElo?: number
 }>()
 
 defineEmits<{

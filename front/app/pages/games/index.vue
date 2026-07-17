@@ -50,6 +50,17 @@ const currentUserId = computed<string | null>(() => {
   return currentUser.value['@id'] || (currentUser.value.id ? `/api/users/${currentUser.value.id}` : null)
 })
 
+// Chargement dynamique de l'Elo des bots
+const botElo = computed(() => {
+  const botUser = users.value.find(u => u.email === 'bot@hnefatafl.com')
+  return botUser?.elo ?? 1400
+})
+
+const easyBotElo = computed(() => {
+  const easyBotUser = users.value.find(u => u.email === 'easy-bot@hnefatafl.com')
+  return easyBotUser?.elo ?? 400
+})
+
 const emptyBoard = {
   name: "Chargement...",
   boardSize: 11,
@@ -97,11 +108,9 @@ const loadData = async () => {
     const promises: Promise<any>[] = [
       apiFetch('/games'),
       apiFetch('/users'),
-      apiFetch('/game_boards')
+      apiFetch('/game_boards'),
+      fetchMe() // Recharger systématiquement l'utilisateur et son Elo
     ]
-    if (!currentUser.value) {
-      promises.push(fetchMe())
-    }
     
     const results = await Promise.all(promises)
     const gamesData = results[0]
@@ -469,6 +478,8 @@ const playAgainstEasyBot = () => {
         <OrganismsGameLauncher
           v-else
           :user-elo="currentUserElo"
+          :bot-elo="botElo"
+          :easy-bot-elo="easyBotElo"
           @matchmaking="startMatchmaking"
           @challenge="isChallengeModalOpen = true; opponentType = 'friend'"
           @play-bot="playAgainstBot"
