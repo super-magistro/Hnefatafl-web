@@ -3,6 +3,7 @@
 namespace App\Controller;
 
 use App\Entity\Game;
+use App\Service\EloCalculator;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -14,7 +15,8 @@ use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 class GameResignController extends AbstractController
 {
     public function __construct(
-        private EntityManagerInterface $entityManager
+        private EntityManagerInterface $entityManager,
+        private EloCalculator $eloCalculator
     ) {}
 
     // Changement du type de retour : Game -> Response
@@ -38,6 +40,9 @@ class GameResignController extends AbstractController
         }
 
         $data->setStatus('FINISHED');
+
+        // Calcul et mise à jour de l'Elo
+        $this->eloCalculator->updateEloForFinishedGame($data);
 
         $this->entityManager->flush();
 

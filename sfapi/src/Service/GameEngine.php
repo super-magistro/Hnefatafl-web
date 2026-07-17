@@ -9,6 +9,7 @@ use App\Bot\HardBotStrategy;
 use App\Config\GameRules;
 use App\Entity\Game;
 use App\Entity\User;
+use App\Service\EloCalculator;
 use InvalidArgumentException;
 use LogicException;
 use UnexpectedValueException;
@@ -47,7 +48,10 @@ class GameEngine
         'bot@hnefatafl.com'      => HardBotStrategy::class,
     ];
 
-    public function __construct(private readonly GameBoardHelper $boardHelper) {}
+    public function __construct(
+        private readonly GameBoardHelper $boardHelper,
+        private readonly EloCalculator $eloCalculator
+    ) {}
 
     // =========================================================================
     // API PUBLIQUE
@@ -151,6 +155,7 @@ class GameEngine
         if ($victory) {
             $game->setStatus('FINISHED');
             $game->setWinner($victory === 'ATTACKER' ? $game->getAttacker() : $game->getDefender());
+            $this->eloCalculator->updateEloForFinishedGame($game);
         } else {
             $game->setStatus('PLAYING');
         }

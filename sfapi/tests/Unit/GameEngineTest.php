@@ -6,6 +6,7 @@ use App\Bot\GameBoardHelper;
 use App\Entity\Game;
 use App\Entity\GameBoard;
 use App\Entity\User;
+use App\Service\EloCalculator;
 use App\Service\GameEngine;
 use PHPUnit\Framework\TestCase;
 
@@ -15,7 +16,7 @@ class GameEngineTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->engine = new GameEngine(new GameBoardHelper());
+        $this->engine = new GameEngine(new GameBoardHelper(), new EloCalculator());
     }
 
     public function testMovePieceValid(): void
