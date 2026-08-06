@@ -322,4 +322,62 @@ class GameEngineTest extends TestCase
         $newBoard = $game->getBoardState();
         $this->assertEquals(2, $newBoard[3][2], "Le défenseur ne doit pas être capturé contre le trône avec la règle 'never'");
     }
+
+    public function testVictoryAnnihilationAttackers(): void
+    {
+        $game = new Game();
+        $attacker = new User();
+        $defender = new User();
+        $game->setAttacker($attacker);
+        $game->setDefender($defender);
+
+        $board = new GameBoard();
+        $board->setBoardSize(7);
+        $board->setTerrainLayout(array_fill(0, 7, array_fill(0, 7, 0)));
+        $game->setGameBoard($board);
+
+        // Dernier attaquant (1) en [0,1]. Deux défenseurs (2) en [0,0] et [0,3] (va bouger en [0,2] pour capturer le dernier attaquant)
+        $initialBoard = array_fill(0, 7, array_fill(0, 7, 0));
+        $initialBoard[0][0] = 2; // Défenseur 1
+        $initialBoard[0][1] = 1; // Dernier attaquant
+        $initialBoard[0][3] = 2; // Défenseur 2 qui va bouger en [0,2]
+        $initialBoard[3][3] = 3; // Le Roi
+        $game->setBoardState($initialBoard);
+        $game->setMoves(['A1-A2']); // Tour Défenseur
+
+        $this->engine->playMove($game, [0, 3], [0, 2], null);
+
+        $this->assertEquals('FINISHED', $game->getStatus(), "La partie doit être terminée après capture du dernier attaquant");
+        $this->assertEquals($defender, $game->getWinner(), "Le défenseur doit gagner par anéantissement des attaquants");
+    }
+
+    public function testVictoryImmobilization(): void
+    {
+        $game = new Game();
+        $attacker = new User();
+        $defender = new User();
+        $game->setAttacker($attacker);
+        $game->setDefender($defender);
+
+        $board = new GameBoard();
+        $board->setBoardSize(7);
+        $board->setTerrainLayout(array_fill(0, 7, array_fill(0, 7, 0)));
+        $game->setGameBoard($board);
+
+        // Un seul attaquant (1) en [0,0], bloqué par des défenseurs (2) en [0,1] et [1,0]
+        // Le défenseur va jouer un coup en [3,3] -> au tour de l'attaquant, qui n'aura aucun coup valide
+        $initialBoard = array_fill(0, 7, array_fill(0, 7, 0));
+        $initialBoard[0][0] = 1; // Attaquant bloqué dans le coin top-left (case normal)
+        $initialBoard[0][1] = 2; // Défenseur bloquant à droite
+        $initialBoard[1][0] = 2; // Défenseur bloquant en bas
+        $initialBoard[3][3] = 3; // Roi
+        $initialBoard[4][4] = 2; // Autre défenseur qui va bouger de [4,4] vers [4,5]
+        $game->setBoardState($initialBoard);
+        $game->setMoves(['A1-A2']); // Tour Défenseur
+
+        $this->engine->playMove($game, [4, 4], [4, 5], null);
+
+        $this->assertEquals('FINISHED', $game->getStatus(), "La partie doit être terminée car l'attaquant est totalement immobilisé");
+        $this->assertEquals($defender, $game->getWinner(), "Le défenseur doit gagner car l'attaquant est immobilisé");
+    }
 }

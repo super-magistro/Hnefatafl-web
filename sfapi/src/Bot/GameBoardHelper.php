@@ -152,22 +152,26 @@ class GameBoardHelper
     /**
      * Vérifie si une condition de victoire est atteinte sur le plateau donné.
      *
+     * @param bool|null $isNextTurnAttacker Optionnel : vérifie l'absence de coups pour le joueur dont c'est le tour
      * @return string|null 'ATTACKER', 'DEFENDER', ou null si la partie continue
      */
-    public function checkVictory(array $board, array $terrain, int $size, array $rules): ?string
+    public function checkVictory(array $board, array $terrain, int $size, array $rules, ?bool $isNextTurnAttacker = null): ?string
     {
-        // 1. Trouver le Roi
-        $kingPos = null;
+        // 1. Compter les pièces et trouver le Roi
+        $kingPos       = null;
+        $attackerCount = 0;
         for ($y = 0; $y < $size; $y++) {
             for ($x = 0; $x < $size; $x++) {
                 if ($board[$y][$x] === self::KING) {
                     $kingPos = [$y, $x];
-                    break 2;
+                } elseif ($board[$y][$x] === self::ATTACKER) {
+                    $attackerCount++;
                 }
             }
         }
 
         if (!$kingPos) return 'ATTACKER'; // Roi introuvable (capture totale ou bug)
+        if ($attackerCount === 0) return 'DEFENDER'; // Plus aucun attaquant (anéantissement)
 
         [$kY, $kX] = $kingPos;
         $directions = [[0, 1], [0, -1], [1, 0], [-1, 0]];
@@ -223,6 +227,14 @@ class GameBoardHelper
                     elseif (($terrain[$ny][$nx] ?? 0) === self::CELL_THRONE && $p === self::EMPTY) $blocked++;
                 }
                 if ($blocked === 4) return 'ATTACKER';
+            }
+        }
+
+        // 4. Immobilisation : Le joueur dont c'est le tour n'a plus aucun coup légal possible
+        if ($isNextTurnAttacker !== null) {
+            $nextMoves = $this->generateMoves($board, $size, $terrain, $isNextTurnAttacker);
+            if (empty($nextMoves)) {
+                return $isNextTurnAttacker ? 'DEFENDER' : 'ATTACKER';
             }
         }
 

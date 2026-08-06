@@ -151,7 +151,9 @@ class GameEngine
         $game->setMoves($moveHistory);
 
         // 8. Vérification de victoire
-        $victory = $this->boardHelper->checkVictory($board, $terrain, $boardSize, $rules);
+        $nextMovesCount     = count($game->getMoves());
+        $isNextTurnAttacker = ($nextMovesCount % 2 === 0);
+        $victory            = $this->boardHelper->checkVictory($board, $terrain, $boardSize, $rules, $isNextTurnAttacker);
         if ($victory) {
             $game->setStatus('FINISHED');
             $game->setWinner($victory === 'ATTACKER' ? $game->getAttacker() : $game->getDefender());
@@ -169,10 +171,42 @@ class GameEngine
      */
     public function makeBotMove(Game $game, ?string $botEmail = null): ?Game
     {
+        if ($game->getStatus() === 'FINISHED') {
+            return $game;
+        }
+
+        $gameBoard = $game->getGameBoard();
+        $terrain   = $gameBoard->getTerrainLayout();
+        $boardSize = $gameBoard->getBoardSize();
+        $rules     = $gameBoard?->getRules() ?: GameRules::getRulesForVariant($game->getVariant() ?? '');
+
+        $movesCount     = count($game->getMoves());
+        $isAttackerTurn = ($movesCount % 2 === 0);
+
+        // Vérification préalable si la partie est déjà gagnée (ex: 0 pièces ou blocage)
+        $board   = $game->getBoardState() ?: $gameBoard->getInitialLayout();
+        $victory = $this->boardHelper->checkVictory($board, $terrain, $boardSize, $rules, $isAttackerTurn);
+        if ($victory !== null) {
+            $game->setStatus('FINISHED');
+            $game->setWinner($victory === 'ATTACKER' ? $game->getAttacker() : $game->getDefender());
+            $this->eloCalculator->updateEloForFinishedGame($game);
+            return $game;
+        }
+
         $strategyClass = self::BOT_STRATEGIES[$botEmail] ?? HardBotStrategy::class;
         /** @var BotStrategyInterface $strategy */
         $strategy = new $strategyClass();
-        return $strategy->makeMove($game, $this->boardHelper, $this);
+        $result   = $strategy->makeMove($game, $this->boardHelper, $this);
+
+        if ($result === null) {
+            $victory = $isAttackerTurn ? 'DEFENDER' : 'ATTACKER';
+            $game->setStatus('FINISHED');
+            $game->setWinner($victory === 'ATTACKER' ? $game->getAttacker() : $game->getDefender());
+            $this->eloCalculator->updateEloForFinishedGame($game);
+            return $game;
+        }
+
+        return $result;
     }
 
     /**

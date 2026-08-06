@@ -11,6 +11,8 @@ use App\Controller\GamePlayController;
 use App\Controller\GameResignController;
 use App\Repository\GameRepository;
 use App\Security\SecureRules;
+use App\State\GameCreateProcessor;
+use App\State\GameProvider;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
@@ -22,11 +24,12 @@ use Doctrine\ORM\Mapping as ORM;
         ),
         new Get(
             uriTemplate: '/games/{id}',
+            provider: GameProvider::class,
         ),
         new Post(
             uriTemplate: '/games',
-            processor: \App\State\GameCreateProcessor::class,
             description: 'Créer une partie',
+            processor: GameCreateProcessor::class,
         ),
         new Patch(
             uriTemplate: '/games/{id}',
